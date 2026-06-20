@@ -17,7 +17,7 @@ import {
 } from "./db.js";
 import {
   getCertSession, setCertSession, clearCertSession,
-  setCertPaymentPending, clearCertPaymentPending,
+  setCertPaymentPending, getCertPaymentPending, clearCertPaymentPending,
   setReadyToStart, getReadyToStart, clearReadyToStart,
   setCertTimer, clearCertTimer,
   getCertAdminAction, setCertAdminAction, clearCertAdminAction,

@@ -42,7 +42,30 @@ export async function initProfileSchema(): Promise<void> {
       registered_at TIMESTAMPTZ DEFAULT NOW(),
       last_seen TIMESTAMPTZ DEFAULT NOW()
     );
+
+    CREATE TABLE IF NOT EXISTS bot_settings (
+      key VARCHAR(100) PRIMARY KEY,
+      value TEXT NOT NULL
+    );
   `);
+}
+
+export async function dbSaveAdminChatId(chatId: number): Promise<void> {
+  await pool.query(`
+    INSERT INTO bot_settings (key, value)
+    VALUES ('admin_chat_id', $1)
+    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+  `, [String(chatId)]);
+}
+
+export async function dbLoadAdminChatId(): Promise<number | null> {
+  const r = await pool.query<{ value: string }>(
+    "SELECT value FROM bot_settings WHERE key = 'admin_chat_id'"
+  );
+  const row = r.rows[0];
+  if (!row) return null;
+  const id = parseInt(row.value, 10);
+  return isNaN(id) ? null : id;
 }
 
 export async function getProfile(userId: number): Promise<UserProfile | null> {

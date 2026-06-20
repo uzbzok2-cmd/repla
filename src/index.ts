@@ -4,10 +4,11 @@ import { registerHandlers } from "./handlers.js";
 import { registerIeltsHandlers } from "./ielts/handlers.js";
 import { initSchema } from "./ielts/db.js";
 import { seedSampleExam } from "./ielts/seed.js";
-import { initProfileSchema } from "./registration.js";
+import { initProfileSchema, dbLoadAdminChatId } from "./registration.js";
 import { initCertSchema } from "./cert/db.js";
 import { seedCertExams } from "./cert/seed.js";
 import { registerCertHandlers } from "./cert/handlers.js";
+import { setAdminChatId } from "./subscription.js";
 
 const PORT    = Number(process.env["PORT"] ?? 5000);
 const TOKEN   = process.env["TELEGRAM_BOT_TOKEN"];
@@ -32,6 +33,11 @@ app.listen(PORT, async () => {
 
   try {
     await initProfileSchema();
+    const savedAdminId = await dbLoadAdminChatId();
+    if (savedAdminId) {
+      setAdminChatId(savedAdminId);
+      console.log(`✅ Admin chat ID loaded from DB: ${savedAdminId}`);
+    }
     console.log("✅ User profile schema ready");
   } catch (err) {
     console.error("Profile schema error:", err);

@@ -62,6 +62,7 @@ import {
   ADMIN_USERNAME,
   type PendingPayment,
 } from "./subscription.js";
+import { dbSaveAdminChatId } from "./registration.js";
 
 // ── Button texts ─────────────────────────────────────────────────────
 const BTN_RUSSIAN   = "🇷🇺 Ruscha";
@@ -199,7 +200,7 @@ export function registerHandlers(bot: TelegramBot): void {
     const userId = msg.from!.id;
     const param  = (match?.[1] ?? "").trim();
 
-    if (isAdmin(msg)) setAdminChatId(chatId);
+    if (isAdmin(msg)) { setAdminChatId(chatId); dbSaveAdminChatId(chatId).catch(() => {}); }
     registerUser(userId, msg.from!.first_name, msg.from?.username);
 
     clearSession(chatId);
@@ -333,6 +334,7 @@ export function registerHandlers(bot: TelegramBot): void {
   bot.onText(/\/admin/, async (msg) => {
     if (!isAdmin(msg)) return;
     setAdminChatId(msg.chat.id);
+    dbSaveAdminChatId(msg.chat.id).catch(() => {});
     await bot.sendMessage(msg.chat.id, formatAdminStats(), {
       parse_mode: "HTML",
       reply_markup: MAIN_KEYBOARD,
@@ -580,7 +582,7 @@ export function registerHandlers(bot: TelegramBot): void {
     const fileId = msg.voice?.file_id;
     if (!fileId) return;
 
-    if (isAdmin(msg)) setAdminChatId(chatId);
+    if (isAdmin(msg)) { setAdminChatId(chatId); dbSaveAdminChatId(chatId).catch(() => {}); }
     registerUser(userId, msg.from!.first_name, msg.from?.username);
 
     // Block voice during registration
@@ -706,7 +708,7 @@ export function registerHandlers(bot: TelegramBot): void {
     const text   = msg.text ?? "";
     if (text.startsWith("/")) return;
 
-    if (isAdmin(msg)) setAdminChatId(chatId);
+    if (isAdmin(msg)) { setAdminChatId(chatId); dbSaveAdminChatId(chatId).catch(() => {}); }
     registerUser(userId, msg.from!.first_name, msg.from?.username);
 
     // ── Registration flow ─────────────────────────────────────────
