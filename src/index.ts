@@ -9,6 +9,8 @@ import { initCertSchema } from "./cert/db.js";
 import { seedCertExams } from "./cert/seed.js";
 import { registerCertHandlers } from "./cert/handlers.js";
 import { setAdminChatId } from "./subscription.js";
+import { setBotForExam } from "./webapp.js";
+import { setupExamRoutes } from "./examapi.js";
 
 const PORT    = Number(process.env["PORT"] ?? 5000);
 const TOKEN   = process.env["TELEGRAM_BOT_TOKEN"];
@@ -25,8 +27,13 @@ if (!GROQ_KEY) {
 }
 
 const app = express();
+app.use(express.json({ limit: "2mb" }));
+app.use(express.static("public"));
+
 app.get("/", (_req, res) => res.send("Tutor Bot + IELTS + Rus Sertifikati running!"));
 app.get("/health", (_req, res) => res.json({ status: "ok", uptime: process.uptime() }));
+
+setupExamRoutes(app);
 
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
@@ -60,6 +67,7 @@ app.listen(PORT, async () => {
   }
 
   const bot = new TelegramBot(TOKEN, { polling: true });
+  setBotForExam(bot);
 
   bot.on("polling_error", (err) => console.error("Polling error:", err));
   bot.on("error",         (err) => console.error("Bot error:", err));

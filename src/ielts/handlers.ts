@@ -17,6 +17,7 @@ import {
 import { evaluateWriting, evaluateSpeaking, transcribeForSpeaking } from "./evaluator.js";
 import { rawToListeningBand, rawToReadingBand, calcOverall, bandEmoji, bandDescription, roundToBand } from "./scoring.js";
 import { getAdminChatId } from "../subscription.js";
+import { createExamToken, getWebAppUrl } from "../webapp.js";
 import type { IeltsSection } from "./types.js";
 import { transcribeAudio } from "../ai.js";
 
@@ -851,7 +852,31 @@ export async function registerIeltsHandlers(bot: TelegramBot): Promise<void> {
       `✅ <b>IELTS to'lov tasdiqlandi!</b>\n👤 ID: <code>${userId}</code>`,
       { parse_mode: "HTML" }
     );
-    await startExam(bot, userId, ue.id, ue.exam_id);
+
+    const token = createExamToken({ userId, examType: "ielts", userExamId: ue.id, examId: ue.exam_id });
+    const webAppUrl = getWebAppUrl(token);
+
+    await bot.sendMessage(userId,
+      `╔══════════════════════════════╗\n` +
+      `   ✅ IELTS IMTIHON TAYYOR!\n` +
+      `╚══════════════════════════════╝\n\n` +
+      `🎓 <b>IELTS Mock Exam</b> uchun to'lovingiz tasdiqlandi!\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `⚠️ Imtihon faqat <b>1 marta</b> topshiriladi.\n` +
+      `⏱ Vaqt Web App ichida hisoblanadi.\n` +
+      `🌐 Savollar chiroyli interfeyda ko'rinadi.\n` +
+      `✅ Variantli savollarda belgi qo'yib javob bering.\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `Boshlashga tayyor bo'lsangiz, quyidagi tugmani bosing:`,
+      {
+        parse_mode: "HTML",
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "🚀 IELTS imtihonini boshlash", web_app: { url: webAppUrl } },
+          ]],
+        },
+      }
+    );
   });
 
   // Reject payment

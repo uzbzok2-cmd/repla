@@ -1,4 +1,5 @@
 import TelegramBot, { type Message, type ReplyKeyboardMarkup } from "node-telegram-bot-api";
+import { createExamToken, getWebAppUrl } from "../webapp.js";
 import {
   createCertUserExam, getLatestCertUserExam, getCertUserExamById,
   updateCertStatus, setCertPaymentPhoto, getPendingCertPayments,
@@ -299,6 +300,8 @@ async function confirmCertPayment(bot: TelegramBot, adminChatId: number, userId:
 
 async function sendReadyNotification(bot: TelegramBot, chatId: number, level: CertLevel, userExamId: number): Promise<void> {
   const levelName = level === "B2" ? "B2 Upper-Intermediate" : "C1 Advanced";
+  const token = createExamToken({ userId: chatId, examType: "cert", userExamId, level });
+  const webAppUrl = getWebAppUrl(token);
   await bot.sendMessage(
     chatId,
     `╔══════════════════════════════╗\n` +
@@ -307,15 +310,16 @@ async function sendReadyNotification(bot: TelegramBot, chatId: number, level: Ce
     `🎓 <b>Rus tili ${levelName} sertifikat imtihoni</b> ochildi!\n\n` +
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
     `⚠️ Imtihon faqat <b>1 marta</b> topshiriladi.\n` +
-    `⏱ Boshlagandan so'ng vaqt hisoblay boshlaydi.\n` +
-    `📱 Imtihon davomida botni yopmasligingizni so'raymiz.\n` +
+    `⏱ Vaqt Web App ichida hisoblanadi.\n` +
+    `🌐 Savollar chiroyli interfeyda ko'rinadi.\n` +
+    `✅ Variantli savollarda belgi qo'yib javob bering.\n` +
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
     `Boshlashga tayyor bo'lsangiz, quyidagi tugmani bosing:`,
     {
       parse_mode: "HTML",
       reply_markup: {
         inline_keyboard: [[
-          { text: `🚀 ${level} imtihonini boshlash`, callback_data: `cert:start:${level}:${userExamId}` },
+          { text: `🚀 ${level} imtihonini boshlash`, web_app: { url: webAppUrl } },
         ]],
       },
     }
