@@ -2,7 +2,7 @@ import express from "express";
 import TelegramBot from "node-telegram-bot-api";
 import { registerHandlers } from "./handlers.js";
 
-const PORT = Number(process.env["PORT"] ?? 10000);
+const PORT = Number(process.env["PORT"] ?? 5000);
 const TOKEN = process.env["TELEGRAM_BOT_TOKEN"];
 const GROQ_KEY = process.env["GROQ_API_KEY"];
 
