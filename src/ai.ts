@@ -7,6 +7,14 @@ import axios from "axios";
 
 const groq = new Groq({ apiKey: process.env["GROQ_API_KEY"] });
 
+const ELEVENLABS_API_KEY = process.env["ELEVENLABS_API_KEY"];
+
+const ELEVENLABS_VOICES: Record<string, string> = {
+  russian: "XrExE9yKIg1WjnnlVkGX",
+  english: "21m00Tcm4TlvDq8ikWAM",
+  turkish: "XrExE9yKIg1WjnnlVkGX",
+};
+
 export async function transcribeAudio(fileUrl: string): Promise<string> {
   const tmpInput = join(tmpdir(), `voice_${Date.now()}.ogg`);
   try {
@@ -52,18 +60,63 @@ export async function textToSpeech(
   text: string,
   mode: "russian" | "english" | "turkish" = "russian"
 ): Promise<Buffer> {
-  const lang = mode === "english" ? "en" : mode === "turkish" ? "tr" : "ru";
   const targetText =
     mode === "english" ? extractEnglishPart(text) :
     mode === "turkish" ? extractTurkishPart(text) :
     extractRussianPart(text);
-  const chunks = splitIntoChunks(targetText, 180);
+
+  if (ELEVENLABS_API_KEY) {
+    try {
+      return await elevenLabsTTS(targetText, mode);
+    } catch (err) {
+      console.error("ElevenLabs TTS failed, falling back to Google TTS:", err);
+    }
+  }
+
+  return await googleTTS(targetText, mode);
+}
+
+async function elevenLabsTTS(
+  text: string,
+  mode: "russian" | "english" | "turkish"
+): Promise<Buffer> {
+  const voiceId = ELEVENLABS_VOICES[mode];
+  const response = await axios.post(
+    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+    {
+      text: text.slice(0, 500),
+      model_id: "eleven_multilingual_v2",
+      voice_settings: {
+        stability: 0.5,
+        similarity_boost: 0.75,
+        style: 0.3,
+        use_speaker_boost: true,
+      },
+    },
+    {
+      headers: {
+        "xi-api-key": ELEVENLABS_API_KEY,
+        "Content-Type": "application/json",
+        Accept: "audio/mpeg",
+      },
+      responseType: "arraybuffer",
+      timeout: 20000,
+    }
+  );
+  return Buffer.from(response.data);
+}
+
+async function googleTTS(
+  text: string,
+  mode: "russian" | "english" | "turkish"
+): Promise<Buffer> {
+  const lang = mode === "english" ? "en" : mode === "turkish" ? "tr" : "ru";
+  const chunks = splitIntoChunks(text, 180);
   const audioParts: Buffer[] = [];
 
   for (const chunk of chunks) {
     const encoded = encodeURIComponent(chunk);
     const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=${lang}&client=gtx&ttsspeed=0.9`;
-
     const response = await axios.get(url, {
       responseType: "arraybuffer",
       headers: {
@@ -113,10 +166,7 @@ function extractTurkishPart(text: string): string {
   const result: string[] = [];
   let beforeSeparator = true;
   for (const line of lines) {
-    if (line.trim() === "---") {
-      beforeSeparator = false;
-      continue;
-    }
+    if (line.trim() === "---") { beforeSeparator = false; continue; }
     if (beforeSeparator && line.trim().length > 3) {
       const hasRussian = /[\u0400-\u04FF]/.test(line);
       const isUzbek = /[o'g']/i.test(line) && /\b(bu|va|ham|uchun|bilan|men|siz)\b/i.test(line);
