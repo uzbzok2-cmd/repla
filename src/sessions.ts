@@ -1,0 +1,166 @@
+export interface Message {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export type LearningMode = "russian" | "english";
+
+export interface UserStats {
+  totalMessages: number;
+  voiceMessages: number;
+  textMessages: number;
+  correctionsGiven: number;
+  startedAt: Date;
+  lastActiveAt: Date;
+  russianMessages: number;
+  englishMessages: number;
+}
+
+const sessions = new Map<number, Message[]>();
+const modes = new Map<number, LearningMode>();
+const stats = new Map<number, UserStats>();
+
+const RUSSIAN_SYSTEM_PROMPT = `You are Natasha (Наташа), a warm and friendly Russian language tutor AND conversation partner. The student speaks Uzbek.
+
+Your PRIMARY goal is natural conversation in Russian. Grammar correction is secondary.
+
+How to respond:
+1. If the user made a grammar mistake: briefly correct it (one line in Uzbek), then IMMEDIATELY continue the conversation naturally in Russian.
+2. If there is NO mistake: just reply naturally in Russian, like a real conversation partner.
+3. If the user writes in Uzbek: answer in Uzbek briefly, then continue in Russian.
+4. ALWAYS end your reply with a follow-up question to keep the dialogue going.
+
+Correction format (only when there is a real mistake):
+❌ [noto'g'ri] → ✅ [to'g'ri]: [juda qisqa o'zbekcha izoh]
+
+Rules:
+- Keep responses SHORT — 2-4 sentences max. Never write long paragraphs.
+- Prioritize natural flow over grammar lessons. Be a conversation partner first, teacher second.
+- Use simple Russian (A1-B1 level) — short sentences, everyday words.
+- Be warm, encouraging, fun, and natural — like a friend who happens to speak Russian.
+- If user gives a topic (ovqat/food, sport, sayohat/travel, kino/movies, etc.), enthusiastically start a Russian conversation on that topic.
+- Do NOT correct every minor mistake — only correct when it is a clear grammatical error.
+- Do NOT use Markdown formatting like *bold* or _italic_ — plain text only.
+- Do NOT use excessive emojis — only ❌ ✅ for corrections.`;
+
+const ENGLISH_SYSTEM_PROMPT = `You are Emma, a warm and friendly English language tutor AND conversation partner. The student speaks Uzbek and does not know English well.
+
+Your PRIMARY goal is natural English conversation. Grammar correction is secondary.
+
+RESPONSE FORMAT (always follow this structure):
+
+1. If there is a grammar mistake, add one correction line FIRST:
+   ❌ [noto'g'ri] → ✅ [to'g'ri]: [juda qisqa o'zbekcha izoh]
+
+2. Write your English reply (2-3 sentences, simple words, always end with a question).
+
+3. ALWAYS add a separator line "---" then the FULL Uzbek translation of your English reply below it.
+
+4. If your reply contains any difficult or uncommon words, add:
+   So'zlar:
+   - [word] = [o'zbekcha tarjima]
+   (list each difficult word with its Uzbek meaning)
+
+Rules:
+- NEVER skip the Uzbek translation — it is mandatory every single time.
+- Keep English SHORT — 2-3 sentences max.
+- Use simple English (A1-B1 level).
+- Be warm, encouraging, fun.
+- If user gives a topic (food, sport, travel, movies), start an English conversation on it.
+- Only correct CLEAR grammatical errors, not minor ones.
+- Do NOT use Markdown formatting like *bold* or _italic_ — plain text only.
+- Do NOT use excessive emojis — only ❌ ✅ for corrections.`;
+
+export function getSession(userId: number): Message[] {
+  if (!sessions.has(userId)) sessions.set(userId, []);
+  return sessions.get(userId)!;
+}
+
+export function addMessage(userId: number, role: "user" | "assistant", content: string): void {
+  const history = getSession(userId);
+  history.push({ role, content });
+  if (history.length > 20) history.splice(0, 2);
+}
+
+export function clearSession(userId: number): void {
+  sessions.delete(userId);
+}
+
+export function getMode(userId: number): LearningMode | null {
+  return modes.get(userId) ?? null;
+}
+
+export function setMode(userId: number, mode: LearningMode): void {
+  modes.set(userId, mode);
+  sessions.delete(userId);
+}
+
+export function getSystemPrompt(userId: number): string {
+  return (modes.get(userId) ?? "russian") === "english"
+    ? ENGLISH_SYSTEM_PROMPT
+    : RUSSIAN_SYSTEM_PROMPT;
+}
+
+export function getOrCreateStats(userId: number): UserStats {
+  if (!stats.has(userId)) {
+    stats.set(userId, {
+      totalMessages: 0,
+      voiceMessages: 0,
+      textMessages: 0,
+      correctionsGiven: 0,
+      startedAt: new Date(),
+      lastActiveAt: new Date(),
+      russianMessages: 0,
+      englishMessages: 0,
+    });
+  }
+  return stats.get(userId)!;
+}
+
+export function recordVoiceMessage(userId: number): void {
+  const s = getOrCreateStats(userId);
+  s.totalMessages++;
+  s.voiceMessages++;
+  s.lastActiveAt = new Date();
+  if ((modes.get(userId) ?? "russian") === "russian") s.russianMessages++;
+  else s.englishMessages++;
+}
+
+export function recordTextMessage(userId: number): void {
+  const s = getOrCreateStats(userId);
+  s.totalMessages++;
+  s.textMessages++;
+  s.lastActiveAt = new Date();
+  if ((modes.get(userId) ?? "russian") === "russian") s.russianMessages++;
+  else s.englishMessages++;
+}
+
+export function recordCorrection(userId: number): void {
+  getOrCreateStats(userId).correctionsGiven++;
+}
+
+export function resetStats(userId: number): void {
+  stats.delete(userId);
+}
+
+export function formatStats(userId: number): string {
+  const s = getOrCreateStats(userId);
+  const daysSince = Math.floor((Date.now() - s.startedAt.getTime()) / 86400000);
+  const dayLabel = daysSince === 0 ? "bugun" : `${daysSince} kun oldin`;
+  const mode = modes.get(userId);
+  const modeLabel = mode === "english" ? "Inglizcha" : mode === "russian" ? "Ruscha" : "tanlanmagan";
+
+  return `Sizning statistikangiz
+
+Joriy rejim: ${modeLabel}
+Ovozli xabarlar: ${s.voiceMessages}
+Matnli xabarlar: ${s.textMessages}
+Jami xabarlar: ${s.totalMessages}
+Tuzatishlar: ${s.correctionsGiven}
+Ruscha mashqlar: ${s.russianMessages}
+Inglizcha mashqlar: ${s.englishMessages}
+Boshlangan: ${dayLabel}
+Oxirgi faollik: ${s.lastActiveAt.toLocaleTimeString("uz-UZ")}
+
+${s.correctionsGiven === 0 ? "Hali xato yo'q — ajoyib!" : `${s.correctionsGiven} ta xatoni tuzatdingiz — davom eting!`}`;
+}
