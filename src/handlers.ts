@@ -10,6 +10,16 @@ import {
   routeIeltsMessage,
 } from "./ielts/handlers.js";
 import { getIeltsPaymentPending } from "./ielts/state.js";
+import {
+  getProfile, upsertProfile, updateProfilePhone, touchLastSeen,
+  isRegistered, getRegStep, setRegStep, clearRegStep,
+} from "./registration.js";
+import {
+  handleCertEntry, handleCertLevelChosen, handleCertPay,
+  handleCertPaymentPhoto, startCertExam,
+  handleMyResults, routeCertMessage, registerCertHandlers,
+} from "./cert/handlers.js";
+import { getCertPaymentPending } from "./cert/state.js";
 import { transcribeAudio, getTutorReply, textToSpeech } from "./ai.js";
 import {
   getSession,
@@ -65,12 +75,13 @@ const BTN_HELP      = "ℹ️ Yordam";
 
 // ── Keyboards ────────────────────────────────────────────────────────
 const BTN_IELTS = "📝 IELTS Mock Exam";
+const BTN_CERT  = "🎓 Rus tili sertifikati";
 
 const MAIN_KEYBOARD: ReplyKeyboardMarkup = {
   keyboard: [
     [{ text: BTN_RUSSIAN }, { text: BTN_ENGLISH }, { text: BTN_TURKISH }],
     [{ text: BTN_STATUS }, { text: BTN_SUBSCRIBE }],
-    [{ text: BTN_IELTS }],
+    [{ text: BTN_IELTS }, { text: BTN_CERT }],
     [{ text: BTN_REFERRAL }, { text: BTN_STATS }],
     [{ text: BTN_HELP }],
   ],
@@ -222,6 +233,27 @@ export function registerHandlers(bot: TelegramBot): void {
       }
     }
 
+    // Check if user is registered
+    const registered = await isRegistered(userId).catch(() => false);
+    if (!registered) {
+      clearRegStep(userId);
+      setRegStep(userId, { step: "asking_name" });
+      await bot.sendMessage(
+        chatId,
+        `👋 <b>Xush kelibsiz!</b>\n\n` +
+        `🤖 Men AI til o'qituvchisi va Rus tili sertifikat bo'timan!\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `📋 Avval ro'yxatdan o'tishingiz kerak.\n` +
+        `Bu faqat bir marta.\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `1️⃣ <b>To'liq ismingizni kiriting</b>\n` +
+        `(Ism va familiya, masalan: Alisher Karimov)`,
+        { parse_mode: "HTML" }
+      );
+      return;
+    }
+
+    await touchLastSeen(userId).catch(() => {});
     await bot.sendMessage(
       chatId,
       `👋 <b>Xush kelibsiz!</b>\n\n` +
@@ -230,6 +262,7 @@ export function registerHandlers(bot: TelegramBot): void {
       `━━━━━━━━━━━━━━━━━━━━\n` +
       `🆓 Har bir til uchun <b>3 ta bepul xabar</b>\n` +
       `💳 Undan keyin: <b>${PRICE_UZS} / til / hafta</b>\n` +
+      `🎓 Rus tili B2/C1 sertifikati: <b>28 000 so'm</b>\n` +
       `━━━━━━━━━━━━━━━━━━━━\n\n` +
       `👇 Qaysi tilni o'rganmoqchisiz?`,
       { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }
@@ -408,6 +441,67 @@ export function registerHandlers(bot: TelegramBot): void {
         `Haqiqiy IELTS imtihoniga maksimal darajada o'xshash!`,
         { parse_mode: "HTML" }
       );
+    } else if (data.startsWith("cert:choose:")) {
+      const level = data.split(":")[2] as "B2" | "C1";
+      await handleCertLevelChosen(bot, chatId, level, query.from.first_name, query.from.username);
+    } else if (data.startsWith("cert:pay:")) {
+      const level = data.split(":")[2] as "B2" | "C1";
+      await handleCertPay(bot, chatId, level, query.from.first_name, query.from.username);
+    } else if (data.startsWith("cert:start:")) {
+      const parts     = data.split(":");
+      const level     = parts[2] as "B2" | "C1";
+      const userExamId = parseInt(parts[3]!, 10);
+      await startCertExam(bot, chatId, level, userExamId);
+    } else if (data === "cert:myresults") {
+      await handleMyResults(bot, chatId);
+    } else if (data.startsWith("reg:gender:")) {
+      const gender = data.split(":")[2]!;
+      const userId = query.from.id;
+      const step   = getRegStep(userId);
+      if (step.step === "asking_gender") {
+        setRegStep(userId, { step: "asking_phone", fullName: step.fullName, age: step.age, gender });
+        await bot.sendMessage(chatId,
+          `✅ <b>Jins: ${gender}</b>\n\n4️⃣ <b>Telefon raqamingizni ulashing:</b>`,
+          {
+            parse_mode: "HTML",
+            reply_markup: {
+              keyboard: [[{ text: "📞 Telefon raqamimni ulashish", request_contact: true }]],
+              resize_keyboard: true,
+              one_time_keyboard: true,
+            },
+          }
+        );
+      }
+    }
+  });
+
+  // ════════════════════════════════════════════════════════════════════
+  // CONTACT (for registration phone number)
+  // ════════════════════════════════════════════════════════════════════
+  bot.on("contact", async (msg) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from!.id;
+    const step   = getRegStep(userId);
+
+    if (step.step === "asking_phone") {
+      const phone = msg.contact?.phone_number ?? "Noma'lum";
+      await upsertProfile(userId, step.fullName, phone, step.age, step.gender);
+      clearRegStep(userId);
+
+      const profile = await getProfile(userId);
+      await bot.sendMessage(
+        chatId,
+        `✅ <b>Ro'yxatdan o'tdingiz!</b>\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `👤 Ism: <b>${profile?.full_name}</b>\n` +
+        `📞 Telefon: <code>${phone}</code>\n` +
+        `🎂 Yosh: <b>${profile?.age}</b>\n` +
+        `👤 Jins: <b>${profile?.gender}</b>\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `🎉 Xush kelibsiz! Endi botning barcha imkoniyatlaridan foydalanishingiz mumkin.\n\n` +
+        `👇 Rejim tanlang:`,
+        { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }
+      );
     }
   });
 
@@ -416,6 +510,15 @@ export function registerHandlers(bot: TelegramBot): void {
   // ════════════════════════════════════════════════════════════════════
   bot.on("photo", async (msg) => {
     const chatId = msg.chat.id;
+
+    // Route to cert payment if user is in cert payment pending state
+    const certPending = getCertPaymentPending(chatId);
+    if (certPending) {
+      const photos = msg.photo!;
+      const photoFileId = photos[photos.length - 1].file_id;
+      await handleCertPaymentPhoto(bot, msg, photoFileId);
+      return;
+    }
 
     // Route to IELTS payment if user is in IELTS payment pending state
     const ieltsPending = getIeltsPaymentPending(chatId);
@@ -482,6 +585,10 @@ export function registerHandlers(bot: TelegramBot): void {
 
     if (isAdmin(msg)) setAdminChatId(chatId);
     registerUser(msg.from!.id, msg.from!.first_name, msg.from?.username);
+
+    // Route to cert exam speaking if in cert exam session
+    const certHandled = await routeCertMessage(bot, msg);
+    if (certHandled) return;
 
     // Route to IELTS speaking if in IELTS exam session
     const handled = await routeIeltsMessage(bot, msg);
@@ -562,17 +669,89 @@ export function registerHandlers(bot: TelegramBot): void {
   // ════════════════════════════════════════════════════════════════════
   bot.on("text", async (msg) => {
     const chatId = msg.chat.id;
+    const userId = msg.from!.id;
     const text   = msg.text ?? "";
     if (text.startsWith("/")) return;
 
     if (isAdmin(msg)) setAdminChatId(chatId);
-    registerUser(msg.from!.id, msg.from!.first_name, msg.from?.username);
+    registerUser(userId, msg.from!.first_name, msg.from?.username);
+
+    // ── Registration flow ─────────────────────────────────────────
+    const regStep = getRegStep(userId);
+    if (regStep.step !== "idle") {
+      if (regStep.step === "asking_name") {
+        const fullName = text.trim();
+        if (fullName.split(" ").length < 2 || fullName.length < 4) {
+          await bot.sendMessage(chatId, "❗ Ism va familiyangizni to'liq kiriting.\nMasalan: <b>Alisher Karimov</b>", { parse_mode: "HTML" });
+          return;
+        }
+        setRegStep(userId, { step: "asking_age", fullName });
+        await bot.sendMessage(chatId,
+          `✅ <b>Ism qabul qilindi: ${fullName}</b>\n\n2️⃣ <b>Yoshingizni kiriting</b> (raqam bilan, masalan: 22):`,
+          { parse_mode: "HTML" }
+        );
+        return;
+      }
+      if (regStep.step === "asking_age") {
+        const age = parseInt(text.trim(), 10);
+        if (isNaN(age) || age < 10 || age > 80) {
+          await bot.sendMessage(chatId, "❗ Yoshingizni to'g'ri kiriting (10–80 oralig'ida).");
+          return;
+        }
+        setRegStep(userId, { step: "asking_gender", fullName: regStep.fullName, age });
+        await bot.sendMessage(chatId,
+          `✅ <b>Yosh: ${age}</b>\n\n3️⃣ <b>Jinsingizni tanlang:</b>`,
+          {
+            parse_mode: "HTML",
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: "👨 Erkak", callback_data: "reg:gender:Erkak" },
+                  { text: "👩 Ayol",  callback_data: "reg:gender:Ayol"  },
+                ],
+              ],
+            },
+          }
+        );
+        return;
+      }
+      if (regStep.step === "asking_phone") {
+        await bot.sendMessage(chatId,
+          "📞 Telefon raqamingizni ulashish uchun quyidagi tugmani bosing:",
+          {
+            reply_markup: {
+              keyboard: [[{ text: "📞 Telefon raqamimni ulashish", request_contact: true }]],
+              resize_keyboard: true,
+              one_time_keyboard: true,
+            },
+          }
+        );
+        return;
+      }
+      return;
+    }
+
+    // ── Check registration before accessing features ──────────────
+    const registered = await isRegistered(userId).catch(() => true);
+    if (!registered) {
+      setRegStep(userId, { step: "asking_name" });
+      await bot.sendMessage(chatId,
+        `📋 <b>Avval ro'yxatdan o'ting.</b>\n\n1️⃣ To'liq ismingizni kiriting (ism va familiya):`,
+        { parse_mode: "HTML" }
+      );
+      return;
+    }
+
+    // ── Cert exam routing (must be before other checks) ──────────
+    const certHandled = await routeCertMessage(bot, msg);
+    if (certHandled) return;
 
     // ── IELTS routing (must be before other button checks) ───────
     const ieltsHandled = await routeIeltsMessage(bot, msg);
     if (ieltsHandled) return;
 
     // ── Button shortcuts ──────────────────────────────────────────
+    if (text === BTN_CERT)  { await handleCertEntry(bot, chatId); return; }
     if (text === BTN_IELTS) { await handleIeltsEntry(bot, chatId); return; }
     if (text === BTN_STATUS)    { await bot.sendMessage(chatId, formatStatus(chatId), { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }); return; }
     if (text === BTN_SUBSCRIBE) { await bot.sendMessage(chatId, `💳 <b>Haftalik obuna</b>\n\n💰 Narxi: <b>${PRICE_UZS}</b> / til / hafta\n\n👇 Qaysi til?`, { parse_mode: "HTML", reply_markup: langInlineKeyboard() }); return; }

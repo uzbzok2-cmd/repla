@@ -4,6 +4,10 @@ import { registerHandlers } from "./handlers.js";
 import { registerIeltsHandlers } from "./ielts/handlers.js";
 import { initSchema } from "./ielts/db.js";
 import { seedSampleExam } from "./ielts/seed.js";
+import { initProfileSchema } from "./registration.js";
+import { initCertSchema } from "./cert/db.js";
+import { seedCertExams } from "./cert/seed.js";
+import { registerCertHandlers } from "./cert/handlers.js";
 
 const PORT    = Number(process.env["PORT"] ?? 5000);
 const TOKEN   = process.env["TELEGRAM_BOT_TOKEN"];
@@ -20,18 +24,33 @@ if (!GROQ_KEY) {
 }
 
 const app = express();
-app.get("/", (_req, res) => res.send("Tutor Bot + IELTS Mock Exam is running!"));
+app.get("/", (_req, res) => res.send("Tutor Bot + IELTS + Rus Sertifikati running!"));
 app.get("/health", (_req, res) => res.json({ status: "ok", uptime: process.uptime() }));
 
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
 
-  // Init PostgreSQL schema + seed sample exam
+  try {
+    await initProfileSchema();
+    console.log("✅ User profile schema ready");
+  } catch (err) {
+    console.error("Profile schema error:", err);
+  }
+
   try {
     await initSchema();
     await seedSampleExam();
+    console.log("✅ IELTS schema ready");
   } catch (err) {
-    console.error("DB init error:", err);
+    console.error("IELTS DB init error:", err);
+  }
+
+  try {
+    await initCertSchema();
+    await seedCertExams();
+    console.log("✅ Cert schema ready");
+  } catch (err) {
+    console.error("Cert DB init error:", err);
   }
 
   const bot = new TelegramBot(TOKEN, { polling: true });
@@ -41,10 +60,10 @@ app.listen(PORT, async () => {
 
   registerHandlers(bot);
   await registerIeltsHandlers(bot);
+  await registerCertHandlers(bot);
 
-  console.log("🤖 Tutor Bot + IELTS started and polling for messages");
+  console.log("🤖 Tutor Bot + IELTS + Rus Sertifikati started and polling");
 
-  // Render bepul tier uyquya tushmasligi uchun o'z-o'zini har 14 daqiqada ping
   const RENDER_URL = process.env["RENDER_EXTERNAL_URL"];
   if (RENDER_URL) {
     setInterval(async () => {

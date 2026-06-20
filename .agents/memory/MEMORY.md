@@ -1,0 +1,2 @@
+- [Cert exam module](cert-module.md) — Russian B2/C1 CEFR cert exam in src/cert/; registration in src/registration.ts; all handlers wired in src/handlers.ts + src/index.ts
+- [Registration gate](cert-module.md) — All users must complete registration (name→age→gender→phone contact) before accessing any features; stored in user_profiles table
