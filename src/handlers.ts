@@ -244,11 +244,11 @@ export function registerHandlers(bot: TelegramBot): void {
         `🤖 Men AI til o'qituvchisi va Rus tili sertifikat bo'timan!\n\n` +
         `━━━━━━━━━━━━━━━━━━━━\n` +
         `📋 Avval ro'yxatdan o'tishingiz kerak.\n` +
-        `Bu faqat bir marta.\n` +
+        `Bu faqat bir marta va faqat 1 daqiqa vaqt oladi.\n` +
         `━━━━━━━━━━━━━━━━━━━━\n\n` +
         `1️⃣ <b>To'liq ismingizni kiriting</b>\n` +
         `(Ism va familiya, masalan: Alisher Karimov)`,
-        { parse_mode: "HTML" }
+        { parse_mode: "HTML", reply_markup: { remove_keyboard: true } }
       );
       return;
     }
@@ -461,7 +461,12 @@ export function registerHandlers(bot: TelegramBot): void {
       if (step.step === "asking_gender") {
         setRegStep(userId, { step: "asking_phone", fullName: step.fullName, age: step.age, gender });
         await bot.sendMessage(chatId,
-          `✅ <b>Jins: ${gender}</b>\n\n4️⃣ <b>Telefon raqamingizni ulashing:</b>`,
+          `✅ <b>Jins: ${gender}</b>\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━\n` +
+          `📊 Ro'yxatdan o'tish: <b>4/4</b>\n` +
+          `━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `4️⃣ <b>Telefon raqamingizni ulashing</b>\n\n` +
+          `Quyidagi tugmani bosing 👇`,
           {
             parse_mode: "HTML",
             reply_markup: {
@@ -580,11 +585,48 @@ export function registerHandlers(bot: TelegramBot): void {
   // ════════════════════════════════════════════════════════════════════
   bot.on("voice", async (msg) => {
     const chatId = msg.chat.id;
+    const userId = msg.from!.id;
     const fileId = msg.voice?.file_id;
     if (!fileId) return;
 
     if (isAdmin(msg)) setAdminChatId(chatId);
-    registerUser(msg.from!.id, msg.from!.first_name, msg.from?.username);
+    registerUser(userId, msg.from!.first_name, msg.from?.username);
+
+    // Block voice during registration
+    const regStepV = getRegStep(userId);
+    if (regStepV.step !== "idle") {
+      const hints: Record<string, string> = {
+        asking_name: "1️⃣ To'liq ismingizni <b>matn</b> bilan kiriting (ism va familiya):",
+        asking_age:  "2️⃣ Yoshingizni <b>raqam</b> bilan kiriting (masalan: <code>22</code>):",
+        asking_gender: "3️⃣ Quyidagi tugmalardan <b>jins</b>ingizni tanlang:",
+        asking_phone: "4️⃣ Telefon raqamingizni ulashish uchun quyidagi tugmani bosing:",
+      };
+      const hint = hints[regStepV.step] ?? "Ro'yxatdan o'tishni davom eting.";
+      await bot.sendMessage(chatId,
+        `⚠️ <b>Ro'yxatdan o'tish hali tugamagan.</b>\n\n${hint}`,
+        {
+          parse_mode: "HTML",
+          reply_markup: regStepV.step === "asking_phone"
+            ? { keyboard: [[{ text: "📞 Telefon raqamimni ulashish", request_contact: true }]], resize_keyboard: true, one_time_keyboard: true }
+            : regStepV.step === "asking_gender"
+              ? { inline_keyboard: [[{ text: "👨 Erkak", callback_data: "reg:gender:Erkak" }, { text: "👩 Ayol", callback_data: "reg:gender:Ayol" }]] }
+              : { remove_keyboard: true },
+        }
+      );
+      return;
+    }
+
+    // Block if not registered
+    const regOkV = await isRegistered(userId).catch(() => true);
+    if (!regOkV) {
+      clearRegStep(userId);
+      setRegStep(userId, { step: "asking_name" });
+      await bot.sendMessage(chatId,
+        `📋 <b>Avval ro'yxatdan o'ting.</b>\n\n1️⃣ To'liq ismingizni kiriting (ism va familiya):`,
+        { parse_mode: "HTML", reply_markup: { remove_keyboard: true } }
+      );
+      return;
+    }
 
     // Route to cert exam speaking if in cert exam session
     const certHandled = await routeCertMessage(bot, msg);
@@ -679,31 +721,56 @@ export function registerHandlers(bot: TelegramBot): void {
     // ── Registration flow ─────────────────────────────────────────
     const regStep = getRegStep(userId);
     if (regStep.step !== "idle") {
+      // Reject any text that looks like a keyboard button (contains emoji at start)
+      const isButtonText = /^[🇷🇺🇬🇧🇹🇷📊💳🔗📈ℹ️📝🎓⏱🏳]/u.test(text.trim());
+
       if (regStep.step === "asking_name") {
         const fullName = text.trim();
-        if (fullName.split(" ").length < 2 || fullName.length < 4) {
-          await bot.sendMessage(chatId, "❗ Ism va familiyangizni to'liq kiriting.\nMasalan: <b>Alisher Karimov</b>", { parse_mode: "HTML" });
+        // Validate: no emojis, at least 2 words, only letters allowed
+        const isValidName = /^[\p{L}\s'-]+$/u.test(fullName) && fullName.split(/\s+/).length >= 2 && fullName.length >= 4 && !isButtonText;
+        if (!isValidName) {
+          await bot.sendMessage(chatId,
+            `❗ <b>Iltimos, to'liq ismingizni kiriting.</b>\n\n` +
+            `Ism va familiya harflar bilan yozilishi kerak.\n` +
+            `Masalan: <b>Alisher Karimov</b>`,
+            { parse_mode: "HTML", reply_markup: { remove_keyboard: true } }
+          );
           return;
         }
         setRegStep(userId, { step: "asking_age", fullName });
         await bot.sendMessage(chatId,
-          `✅ <b>Ism qabul qilindi: ${fullName}</b>\n\n2️⃣ <b>Yoshingizni kiriting</b> (raqam bilan, masalan: 22):`,
-          { parse_mode: "HTML" }
+          `✅ <b>Ajoyib, ${fullName}!</b>\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━\n` +
+          `📊 Ro'yxatdan o'tish: <b>2/4</b>\n` +
+          `━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `2️⃣ <b>Yoshingizni kiriting</b>\n` +
+          `(faqat raqam, masalan: <code>22</code>)`,
+          { parse_mode: "HTML", reply_markup: { remove_keyboard: true } }
         );
         return;
       }
+
       if (regStep.step === "asking_age") {
         const age = parseInt(text.trim(), 10);
-        if (isNaN(age) || age < 10 || age > 80) {
-          await bot.sendMessage(chatId, "❗ Yoshingizni to'g'ri kiriting (10–80 oralig'ida).");
+        if (isNaN(age) || age < 10 || age > 80 || isButtonText) {
+          await bot.sendMessage(chatId,
+            `❗ <b>Yoshingizni raqam bilan kiriting.</b>\n` +
+            `Masalan: <code>20</code>  (10–80 oralig'ida)`,
+            { parse_mode: "HTML", reply_markup: { remove_keyboard: true } }
+          );
           return;
         }
         setRegStep(userId, { step: "asking_gender", fullName: regStep.fullName, age });
         await bot.sendMessage(chatId,
-          `✅ <b>Yosh: ${age}</b>\n\n3️⃣ <b>Jinsingizni tanlang:</b>`,
+          `✅ <b>Yosh: ${age}</b>\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━\n` +
+          `📊 Ro'yxatdan o'tish: <b>3/4</b>\n` +
+          `━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `3️⃣ <b>Jinsingizni tanlang:</b>`,
           {
             parse_mode: "HTML",
             reply_markup: {
+              remove_keyboard: true,
               inline_keyboard: [
                 [
                   { text: "👨 Erkak", callback_data: "reg:gender:Erkak" },
@@ -715,10 +782,30 @@ export function registerHandlers(bot: TelegramBot): void {
         );
         return;
       }
+
+      if (regStep.step === "asking_gender") {
+        // Only inline button is accepted for gender — ignore text
+        await bot.sendMessage(chatId,
+          `3️⃣ Iltimos, <b>quyidagi tugmalardan birini tanlang:</b>`,
+          {
+            parse_mode: "HTML",
+            reply_markup: {
+              inline_keyboard: [[
+                { text: "👨 Erkak", callback_data: "reg:gender:Erkak" },
+                { text: "👩 Ayol",  callback_data: "reg:gender:Ayol"  },
+              ]],
+            },
+          }
+        );
+        return;
+      }
+
       if (regStep.step === "asking_phone") {
         await bot.sendMessage(chatId,
-          "📞 Telefon raqamingizni ulashish uchun quyidagi tugmani bosing:",
+          `4️⃣ <b>Telefon raqamingizni ulashing:</b>\n\n` +
+          `Quyidagi <b>«📞 Telefon raqamimni ulashish»</b> tugmasini bosing:`,
           {
+            parse_mode: "HTML",
             reply_markup: {
               keyboard: [[{ text: "📞 Telefon raqamimni ulashish", request_contact: true }]],
               resize_keyboard: true,
@@ -734,10 +821,12 @@ export function registerHandlers(bot: TelegramBot): void {
     // ── Check registration before accessing features ──────────────
     const registered = await isRegistered(userId).catch(() => true);
     if (!registered) {
+      clearRegStep(userId);
       setRegStep(userId, { step: "asking_name" });
       await bot.sendMessage(chatId,
-        `📋 <b>Avval ro'yxatdan o'ting.</b>\n\n1️⃣ To'liq ismingizni kiriting (ism va familiya):`,
-        { parse_mode: "HTML" }
+        `📋 <b>Avval ro'yxatdan o'ting.</b>\n\n` +
+        `1️⃣ <b>To'liq ismingizni kiriting</b> (ism va familiya):`,
+        { parse_mode: "HTML", reply_markup: { remove_keyboard: true } }
       );
       return;
     }
