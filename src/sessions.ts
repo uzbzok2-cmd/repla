@@ -3,7 +3,7 @@ export interface Message {
   content: string;
 }
 
-export type LearningMode = "russian" | "english";
+export type LearningMode = "russian" | "english" | "turkish";
 
 export interface UserStats {
   totalMessages: number;
@@ -14,6 +14,7 @@ export interface UserStats {
   lastActiveAt: Date;
   russianMessages: number;
   englishMessages: number;
+  turkishMessages: number;
 }
 
 const sessions = new Map<number, Message[]>();
@@ -71,6 +72,35 @@ Rules:
 - Do NOT use Markdown formatting like *bold* or _italic_ — plain text only.
 - Do NOT use excessive emojis — only ❌ ✅ for corrections.`;
 
+const TURKISH_SYSTEM_PROMPT = `You are Aysha (Ayşe), a warm and friendly Turkish language tutor AND conversation partner. The student speaks Uzbek and does not know Turkish well.
+
+Your PRIMARY goal is natural Turkish conversation. Grammar correction is secondary.
+
+RESPONSE FORMAT (always follow this structure):
+
+1. If there is a grammar mistake, add one correction line FIRST:
+   ❌ [noto'g'ri] → ✅ [to'g'ri]: [juda qisqa o'zbekcha izoh]
+
+2. Write your Turkish reply (2-3 sentences, simple words, always end with a question).
+
+3. ALWAYS add a separator line "---" then the FULL Uzbek translation of your Turkish reply below it.
+
+4. If your reply contains any difficult or uncommon words, add:
+   So'zlar:
+   - [so'z] = [o'zbekcha tarjima]
+   (list each difficult word with its Uzbek meaning)
+
+Rules:
+- NEVER skip the Uzbek translation — it is mandatory every single time.
+- Keep Turkish SHORT — 2-3 sentences max.
+- Use simple Turkish (A1-B1 level) — short sentences, everyday words.
+- Be warm, encouraging, fun, and natural — like a friend who speaks Turkish.
+- Note that Uzbek and Turkish are related languages — use this to help the student connect familiar words.
+- If user gives a topic (ovqat/yemek, sport/spor, sayohat/seyahat, kino/film, etc.), enthusiastically start a Turkish conversation on that topic.
+- Only correct CLEAR grammatical errors, not minor ones.
+- Do NOT use Markdown formatting like *bold* or _italic_ — plain text only.
+- Do NOT use excessive emojis — only ❌ ✅ for corrections.`;
+
 export function getSession(userId: number): Message[] {
   if (!sessions.has(userId)) sessions.set(userId, []);
   return sessions.get(userId)!;
@@ -96,9 +126,10 @@ export function setMode(userId: number, mode: LearningMode): void {
 }
 
 export function getSystemPrompt(userId: number): string {
-  return (modes.get(userId) ?? "russian") === "english"
-    ? ENGLISH_SYSTEM_PROMPT
-    : RUSSIAN_SYSTEM_PROMPT;
+  const mode = modes.get(userId) ?? "russian";
+  if (mode === "english") return ENGLISH_SYSTEM_PROMPT;
+  if (mode === "turkish") return TURKISH_SYSTEM_PROMPT;
+  return RUSSIAN_SYSTEM_PROMPT;
 }
 
 export function getOrCreateStats(userId: number): UserStats {
@@ -112,6 +143,7 @@ export function getOrCreateStats(userId: number): UserStats {
       lastActiveAt: new Date(),
       russianMessages: 0,
       englishMessages: 0,
+      turkishMessages: 0,
     });
   }
   return stats.get(userId)!;
@@ -122,8 +154,10 @@ export function recordVoiceMessage(userId: number): void {
   s.totalMessages++;
   s.voiceMessages++;
   s.lastActiveAt = new Date();
-  if ((modes.get(userId) ?? "russian") === "russian") s.russianMessages++;
-  else s.englishMessages++;
+  const mode = modes.get(userId) ?? "russian";
+  if (mode === "russian") s.russianMessages++;
+  else if (mode === "english") s.englishMessages++;
+  else if (mode === "turkish") s.turkishMessages++;
 }
 
 export function recordTextMessage(userId: number): void {
@@ -131,8 +165,10 @@ export function recordTextMessage(userId: number): void {
   s.totalMessages++;
   s.textMessages++;
   s.lastActiveAt = new Date();
-  if ((modes.get(userId) ?? "russian") === "russian") s.russianMessages++;
-  else s.englishMessages++;
+  const mode = modes.get(userId) ?? "russian";
+  if (mode === "russian") s.russianMessages++;
+  else if (mode === "english") s.englishMessages++;
+  else if (mode === "turkish") s.turkishMessages++;
 }
 
 export function recordCorrection(userId: number): void {
@@ -148,7 +184,11 @@ export function formatStats(userId: number): string {
   const daysSince = Math.floor((Date.now() - s.startedAt.getTime()) / 86400000);
   const dayLabel = daysSince === 0 ? "bugun" : `${daysSince} kun oldin`;
   const mode = modes.get(userId);
-  const modeLabel = mode === "english" ? "Inglizcha" : mode === "russian" ? "Ruscha" : "tanlanmagan";
+  const modeLabel =
+    mode === "english" ? "Inglizcha" :
+    mode === "russian" ? "Ruscha" :
+    mode === "turkish" ? "Turkcha" :
+    "tanlanmagan";
 
   return `Sizning statistikangiz
 
@@ -159,6 +199,7 @@ Jami xabarlar: ${s.totalMessages}
 Tuzatishlar: ${s.correctionsGiven}
 Ruscha mashqlar: ${s.russianMessages}
 Inglizcha mashqlar: ${s.englishMessages}
+Turkcha mashqlar: ${s.turkishMessages}
 Boshlangan: ${dayLabel}
 Oxirgi faollik: ${s.lastActiveAt.toLocaleTimeString("uz-UZ")}
 
