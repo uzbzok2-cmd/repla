@@ -50,10 +50,13 @@ export async function getTutorReply(
 
 export async function textToSpeech(
   text: string,
-  mode: "russian" | "english" = "russian"
+  mode: "russian" | "english" | "turkish" = "russian"
 ): Promise<Buffer> {
-  const lang = mode === "english" ? "en" : "ru";
-  const targetText = mode === "english" ? extractEnglishPart(text) : extractRussianPart(text);
+  const lang = mode === "english" ? "en" : mode === "turkish" ? "tr" : "ru";
+  const targetText =
+    mode === "english" ? extractEnglishPart(text) :
+    mode === "turkish" ? extractTurkishPart(text) :
+    extractRussianPart(text);
   const chunks = splitIntoChunks(targetText, 180);
   const audioParts: Buffer[] = [];
 
@@ -98,6 +101,29 @@ function extractRussianPart(text: string): string {
     if (/[\u0400-\u04FF]/.test(line)) {
       const cleaned = line.replace(/[❌✅→]/g, "").replace(/\s+/g, " ").trim();
       if (cleaned.length > 0) result.push(cleaned);
+    }
+  }
+  return result.length > 0
+    ? result.join(". ")
+    : text.replace(/[❌✅→]/g, "").trim();
+}
+
+function extractTurkishPart(text: string): string {
+  const lines = text.split("\n");
+  const result: string[] = [];
+  let beforeSeparator = true;
+  for (const line of lines) {
+    if (line.trim() === "---") {
+      beforeSeparator = false;
+      continue;
+    }
+    if (beforeSeparator && line.trim().length > 3) {
+      const hasRussian = /[\u0400-\u04FF]/.test(line);
+      const isUzbek = /[o'g']/i.test(line) && /\b(bu|va|ham|uchun|bilan|men|siz)\b/i.test(line);
+      if (!hasRussian && !isUzbek) {
+        const cleaned = line.replace(/[❌✅→\-•]/g, "").replace(/\s+/g, " ").trim();
+        if (cleaned.length > 3) result.push(cleaned);
+      }
     }
   }
   return result.length > 0
