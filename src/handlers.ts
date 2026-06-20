@@ -190,17 +190,8 @@ async function showHelpMessage(bot: TelegramBot, chatId: number): Promise<void> 
 // ── Handler registration ─────────────────────────────────────────────
 export function registerHandlers(bot: TelegramBot): void {
 
-  // Set bot command menu
-  bot.setMyCommands([
-    { command: "start",     description: "🚀 Botni boshlash" },
-    { command: "status",    description: "📊 Obuna holati" },
-    { command: "subscribe", description: "💳 Obuna olish" },
-    { command: "referral",  description: "🔗 Do'st taklif qilish" },
-    { command: "stats",     description: "📈 O'rganish statistikasi" },
-    { command: "mode",      description: "🔄 Tilni o'zgartirish" },
-    { command: "clear",     description: "🗑 Suhbat tarixini tozalash" },
-    { command: "help",      description: "ℹ️ Yordam" },
-  ]).catch(() => {});
+  // Bot command menu yashirilgan
+  bot.setMyCommands([]).catch(() => {});
 
   // ── /start (+ referral support) ──────────────────────────────────
   bot.onText(/\/start(.*)/, async (msg, match) => {
