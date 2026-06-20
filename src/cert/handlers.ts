@@ -1033,7 +1033,14 @@ export async function sendCertResults(
     `🎯 O'tish bali: ${PASS_THRESHOLD[level]}%\n` +
     `━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
     `<b>${passStr}</b>${passed ? " — Tabriklaymiz! 🎉" : " — Qayta urinib ko'ring!"}`,
-    { parse_mode: "HTML", reply_markup: mainKb() }
+    {
+      parse_mode: "HTML",
+      reply_markup: {
+        inline_keyboard: [[
+          { text: `🔄 Yana ${level} imtihon sotib olish`, callback_data: `cert:pay:${level}` },
+        ]],
+      },
+    }
   );
 
   if (passed) {

@@ -753,9 +753,15 @@ async function sendResults(bot: TelegramBot, chatId: number, l: number, r: numbe
     `📊 <i>${bandDescription(overall)}</i>\n` +
     `━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
     `✅ Imtihon muvaffaqiyatli yakunlandi!\n` +
-    `📚 Davom eting va natijangizni yaxshilang!\n\n` +
-    `🔄 Yangi test: /ielts`,
-    { parse_mode: "HTML", reply_markup: mainKb() }
+    `📚 Davom eting va natijangizni yaxshilang!`,
+    {
+      parse_mode: "HTML",
+      reply_markup: {
+        inline_keyboard: [[
+          { text: "🔄 Yana IELTS topshirish", callback_data: "ielts:pay" },
+        ]],
+      },
+    }
   );
 }
 
