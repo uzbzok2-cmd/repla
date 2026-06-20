@@ -1,9 +1,12 @@
 import express from "express";
 import TelegramBot from "node-telegram-bot-api";
 import { registerHandlers } from "./handlers.js";
+import { registerIeltsHandlers } from "./ielts/handlers.js";
+import { initSchema } from "./ielts/db.js";
+import { seedSampleExam } from "./ielts/seed.js";
 
-const PORT = Number(process.env["PORT"] ?? 5000);
-const TOKEN = process.env["TELEGRAM_BOT_TOKEN"];
+const PORT    = Number(process.env["PORT"] ?? 5000);
+const TOKEN   = process.env["TELEGRAM_BOT_TOKEN"];
 const GROQ_KEY = process.env["GROQ_API_KEY"];
 
 if (!TOKEN) {
@@ -17,19 +20,29 @@ if (!GROQ_KEY) {
 }
 
 const app = express();
-app.get("/", (_req, res) => res.send("Tutor Bot is running!"));
+app.get("/", (_req, res) => res.send("Tutor Bot + IELTS Mock Exam is running!"));
 app.get("/health", (_req, res) => res.json({ status: "ok", uptime: process.uptime() }));
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
+
+  // Init PostgreSQL schema + seed sample exam
+  try {
+    await initSchema();
+    await seedSampleExam();
+  } catch (err) {
+    console.error("DB init error:", err);
+  }
 
   const bot = new TelegramBot(TOKEN, { polling: true });
 
   bot.on("polling_error", (err) => console.error("Polling error:", err));
-  bot.on("error", (err) => console.error("Bot error:", err));
+  bot.on("error",         (err) => console.error("Bot error:", err));
 
   registerHandlers(bot);
-  console.log("🤖 Tutor Bot started and polling for messages");
+  await registerIeltsHandlers(bot);
+
+  console.log("🤖 Tutor Bot + IELTS started and polling for messages");
 
   // Render bepul tier uyquya tushmasligi uchun o'z-o'zini har 14 daqiqada ping
   const RENDER_URL = process.env["RENDER_EXTERNAL_URL"];
