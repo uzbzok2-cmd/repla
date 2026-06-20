@@ -3,6 +3,13 @@ import TelegramBot, {
   type Message,
   type InlineKeyboardMarkup,
 } from "node-telegram-bot-api";
+import {
+  handleIeltsEntry,
+  handleIeltsPayCallback,
+  handleIeltsPaymentPhoto,
+  routeIeltsMessage,
+} from "./ielts/handlers.js";
+import { getIeltsPaymentPending } from "./ielts/state.js";
 import { transcribeAudio, getTutorReply, textToSpeech } from "./ai.js";
 import {
   getSession,
@@ -57,10 +64,13 @@ const BTN_STATS     = "📈 Statistika";
 const BTN_HELP      = "ℹ️ Yordam";
 
 // ── Keyboards ────────────────────────────────────────────────────────
+const BTN_IELTS = "📝 IELTS Mock Exam";
+
 const MAIN_KEYBOARD: ReplyKeyboardMarkup = {
   keyboard: [
     [{ text: BTN_RUSSIAN }, { text: BTN_ENGLISH }, { text: BTN_TURKISH }],
     [{ text: BTN_STATUS }, { text: BTN_SUBSCRIBE }],
+    [{ text: BTN_IELTS }],
     [{ text: BTN_REFERRAL }, { text: BTN_STATS }],
     [{ text: BTN_HELP }],
   ],
@@ -374,7 +384,7 @@ export function registerHandlers(bot: TelegramBot): void {
   });
 
   // ════════════════════════════════════════════════════════════════════
-  // CALLBACK QUERY (language selection buttons)
+  // CALLBACK QUERY (language selection + IELTS buttons)
   // ════════════════════════════════════════════════════════════════════
   bot.on("callback_query", async (query) => {
     const chatId = query.message!.chat.id;
@@ -384,6 +394,20 @@ export function registerHandlers(bot: TelegramBot): void {
     if (data.startsWith("pay_lang:")) {
       const lang = data.split(":")[1] as LearningMode;
       await showPaymentInstructions(bot, chatId, lang);
+    } else if (data === "ielts:pay") {
+      await handleIeltsPayCallback(bot, chatId, query.from.first_name, query.from.username);
+    } else if (data === "ielts:info") {
+      await bot.sendMessage(chatId,
+        `ℹ️ <b>IELTS Mock Exam haqida:</b>\n\n` +
+        `🎧 <b>Listening</b> — 4 qism, 40 savol, 40 daqiqa\n` +
+        `📖 <b>Reading</b> — 3 matn, 40 savol, 60 daqiqa\n` +
+        `✍️ <b>Writing</b> — Task 1+2, AI baholash, 60 daqiqa\n` +
+        `🗣 <b>Speaking</b> — Part 1,2,3, AI tahlil, 15 daqiqa\n\n` +
+        `🏆 Natija: Har bo'lim + Overall Band Score\n` +
+        `💰 Narxi: <b>28 000 so'm</b> (bir martalik)\n\n` +
+        `Haqiqiy IELTS imtihoniga maksimal darajada o'xshash!`,
+        { parse_mode: "HTML" }
+      );
     }
   });
 
@@ -392,6 +416,16 @@ export function registerHandlers(bot: TelegramBot): void {
   // ════════════════════════════════════════════════════════════════════
   bot.on("photo", async (msg) => {
     const chatId = msg.chat.id;
+
+    // Route to IELTS payment if user is in IELTS payment pending state
+    const ieltsPending = getIeltsPaymentPending(chatId);
+    if (ieltsPending) {
+      const photos = msg.photo!;
+      const photoFileId = photos[photos.length - 1].file_id;
+      await handleIeltsPaymentPhoto(bot, msg, photoFileId);
+      return;
+    }
+
     const flow   = getFlow(chatId);
     if (flow.state !== "waiting_receipt" || !flow.language) return;
 
@@ -448,6 +482,10 @@ export function registerHandlers(bot: TelegramBot): void {
 
     if (isAdmin(msg)) setAdminChatId(chatId);
     registerUser(msg.from!.id, msg.from!.first_name, msg.from?.username);
+
+    // Route to IELTS speaking if in IELTS exam session
+    const handled = await routeIeltsMessage(bot, msg);
+    if (handled) return;
 
     const mode = getMode(chatId);
     if (!mode) {
@@ -530,7 +568,12 @@ export function registerHandlers(bot: TelegramBot): void {
     if (isAdmin(msg)) setAdminChatId(chatId);
     registerUser(msg.from!.id, msg.from!.first_name, msg.from?.username);
 
+    // ── IELTS routing (must be before other button checks) ───────
+    const ieltsHandled = await routeIeltsMessage(bot, msg);
+    if (ieltsHandled) return;
+
     // ── Button shortcuts ──────────────────────────────────────────
+    if (text === BTN_IELTS) { await handleIeltsEntry(bot, chatId); return; }
     if (text === BTN_STATUS)    { await bot.sendMessage(chatId, formatStatus(chatId), { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }); return; }
     if (text === BTN_SUBSCRIBE) { await bot.sendMessage(chatId, `💳 <b>Haftalik obuna</b>\n\n💰 Narxi: <b>${PRICE_UZS}</b> / til / hafta\n\n👇 Qaysi til?`, { parse_mode: "HTML", reply_markup: langInlineKeyboard() }); return; }
     if (text === BTN_STATS)     { await bot.sendMessage(chatId, formatStats(chatId), { reply_markup: MAIN_KEYBOARD }); return; }
