@@ -17,9 +17,10 @@ import {
 
 const RUSSIAN_BUTTON = "🇷🇺 Ruscha o'rganish";
 const ENGLISH_BUTTON = "🇬🇧 Inglizcha o'rganish";
+const TURKISH_BUTTON = "🇹🇷 Turkcha o'rganish";
 
 const MODE_KEYBOARD: ReplyKeyboardMarkup = {
-  keyboard: [[{ text: RUSSIAN_BUTTON }, { text: ENGLISH_BUTTON }]],
+  keyboard: [[{ text: RUSSIAN_BUTTON }, { text: ENGLISH_BUTTON }], [{ text: TURKISH_BUTTON }]],
   resize_keyboard: true,
   one_time_keyboard: false,
 };
@@ -42,7 +43,8 @@ Nima qilishingiz mumkin:
 Xatolaringizni o'zbekcha tushuntiraman va ovozli javob beraman!
 Boshlang 🎤`;
   }
-  return `🇬🇧 Inglizcha o'rganish rejimi tanlandi!
+  if (mode === "english") {
+    return `🇬🇧 Inglizcha o'rganish rejimi tanlandi!
 
 O'qituvchingiz: Emma
 
@@ -52,6 +54,19 @@ Nima qilishingiz mumkin:
 🎯 Mavzu bering: "food", "sport", "travel"
 
 Har bir inglizcha javob ostida o'zbekcha tarjima va qiyin so'zlar bo'ladi!
+Boshlang 🎤`;
+  }
+  return `🇹🇷 Turkcha o'rganish rejimi tanlandi!
+
+O'qituvchingiz: Aysha
+
+Nima qilishingiz mumkin:
+🎤 Ovozli xabar yuboring — turkcha yoki o'zbekcha
+✍️ Matn yozing — turkcha yoki o'zbekcha
+🎯 Mavzu bering: "yemek", "spor", "seyahat"
+
+Turk va o'zbek tillari yaqin — tez o'rganasiz!
+Har bir javob ostida o'zbekcha tarjima bo'ladi.
 Boshlang 🎤`;
 }
 
@@ -159,8 +174,11 @@ export function registerHandlers(bot: TelegramBot): void {
     const text = msg.text ?? "";
     if (text.startsWith("/")) return;
 
-    if (text === RUSSIAN_BUTTON || text === ENGLISH_BUTTON) {
-      const mode: LearningMode = text === RUSSIAN_BUTTON ? "russian" : "english";
+    if (text === RUSSIAN_BUTTON || text === ENGLISH_BUTTON || text === TURKISH_BUTTON) {
+      const mode: LearningMode =
+        text === RUSSIAN_BUTTON ? "russian" :
+        text === ENGLISH_BUTTON ? "english" :
+        "turkish";
       setMode(chatId, mode);
       await bot.sendMessage(chatId, getModeWelcome(mode), { reply_markup: MODE_KEYBOARD });
       return;
