@@ -21,6 +21,14 @@ export interface PendingPayment {
   requestedAt: Date;
 }
 
+export interface UserRecord {
+  userId: number;
+  firstName: string;
+  username?: string;
+  joinedAt: Date;
+  lastSeen: Date;
+}
+
 export type PaymentState = "idle" | "selecting_language" | "waiting_receipt";
 
 export interface PaymentFlow {
@@ -40,12 +48,48 @@ const paymentFlows = new Map<number, PaymentFlow>();
 const referralMap = new Map<number, number>();
 // referrerId -> Set of users they got bonus for
 const bonusPaid = new Map<number, Set<number>>();
-// admin chat ID (saved when admin uses bot)
+// all users registry
+const userRegistry = new Map<number, UserRecord>();
+// admin chat ID
 let adminChatId: number | null = null;
 
 // ── Admin ────────────────────────────────────────────────────────────
 export function setAdminChatId(id: number) { adminChatId = id; }
 export function getAdminChatId() { return adminChatId; }
+
+// ── User registry ────────────────────────────────────────────────────
+export function registerUser(userId: number, firstName: string, username?: string): void {
+  if (!userRegistry.has(userId)) {
+    userRegistry.set(userId, { userId, firstName, username, joinedAt: new Date(), lastSeen: new Date() });
+  } else {
+    const u = userRegistry.get(userId)!;
+    u.lastSeen = new Date();
+    if (username) u.username = username;
+  }
+}
+
+export function getAllUsers(): UserRecord[] { return [...userRegistry.values()]; }
+export function getUserCount(): number { return userRegistry.size; }
+
+export function getSubscribedUsersCount(lang?: LearningMode): number {
+  let count = 0;
+  for (const [uid] of userRegistry) {
+    if (lang) {
+      if (isSubscribed(uid, lang)) count++;
+    } else {
+      if (LANGUAGES.some((l) => isSubscribed(uid, l.key))) count++;
+    }
+  }
+  return count;
+}
+
+export function getUnsubscribedCount(): number {
+  let count = 0;
+  for (const [uid] of userRegistry) {
+    if (!LANGUAGES.some((l) => isSubscribed(uid, l.key))) count++;
+  }
+  return count;
+}
 
 // ── Free messages ────────────────────────────────────────────────────
 function initFree(userId: number) {
@@ -121,8 +165,6 @@ export function registerReferral(userId: number, referrerId: number): boolean {
   return true;
 }
 
-export function getReferrer(userId: number): number | null { return referralMap.get(userId) ?? null; }
-
 export function tryGiveBonus(referrerId: number, newUserId: number): boolean {
   if (!bonusPaid.has(referrerId)) bonusPaid.set(referrerId, new Set());
   const set = bonusPaid.get(referrerId)!;
@@ -132,23 +174,55 @@ export function tryGiveBonus(referrerId: number, newUserId: number): boolean {
   return true;
 }
 
-// ── Status text ──────────────────────────────────────────────────────
+// ── Formatted status ─────────────────────────────────────────────────
 export function formatStatus(userId: number): string {
-  const lines = ["📊 Sizning obuna holatingiz:\n"];
+  const lines = ["╔══════════════════════╗\n   📊 OBUNA HOLATI\n╚══════════════════════╝\n"];
   for (const { key, flag, label } of LANGUAGES) {
     if (isSubscribed(userId, key)) {
       const exp = getExpiry(userId, key)!;
       const days = Math.ceil((exp.getTime() - Date.now()) / 86400000);
-      lines.push(`${flag} ${label}: ✅ Faol (${days} kun qoldi)`);
+      lines.push(`${flag} ${label}\n   ✅ Faol — ${days} kun qoldi`);
     } else {
       const left = getFreeLeft(userId, key);
       lines.push(left > 0
-        ? `${flag} ${label}: 🆓 ${left} ta bepul xabar qoldi`
-        : `${flag} ${label}: ❌ Obuna kerak (5 000 so'm/hafta)`
+        ? `${flag} ${label}\n   🆓 ${left} ta bepul xabar qoldi`
+        : `${flag} ${label}\n   ❌ Obuna kerak`
       );
     }
   }
-  lines.push("\n/subscribe — obuna olish");
-  lines.push("/referral — do'st taklif qilish");
-  return lines.join("\n");
+  lines.push("\n💳 Obuna: /subscribe\n🔗 Taklif: /referral");
+  return lines.join("\n\n");
+}
+
+// ── Admin full stats ─────────────────────────────────────────────────
+export function formatAdminStats(): string {
+  const total = getUserCount();
+  const subscribed = getSubscribedUsersCount();
+  const unsubscribed = getUnsubscribedCount();
+  const pending = allPending();
+
+  let text = `╔══════════════════════╗\n🔐 ADMIN PANEL\n╚══════════════════════╝\n\n`;
+  text += `👥 <b>FOYDALANUVCHILAR:</b>\n`;
+  text += `┣ Jami a'zolar: <b>${total}</b>\n`;
+  text += `┣ Faol obunalar: <b>${subscribed}</b>\n`;
+  text += `┗ Obunasizlar: <b>${unsubscribed}</b>\n\n`;
+
+  text += `🌍 <b>TILLAR BO'YICHA OBUNALAR:</b>\n`;
+  for (const { key, flag, label } of LANGUAGES) {
+    const count = getSubscribedUsersCount(key);
+    text += `┣ ${flag} ${label}: <b>${count} ta</b>\n`;
+  }
+
+  text += `\n⏳ <b>KUTILAYOTGAN TO'LOVLAR: ${pending.length} ta</b>`;
+  if (pending.length > 0) {
+    text += `\n`;
+    for (const p of pending) {
+      const name = p.username ? `@${p.username}` : p.firstName;
+      text += `\n👤 ${name} (<code>${p.userId}</code>)\n`;
+      text += `🌍 ${LANGUAGES.find(l => l.key === p.language)?.flag} ${p.language}\n`;
+      text += `✅ /confirm_${p.userId}_${p.language}  ❌ /reject_${p.userId}\n`;
+    }
+  }
+
+  return text;
 }
