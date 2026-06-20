@@ -18,7 +18,7 @@ if (!GROQ_KEY) {
 
 const app = express();
 app.get("/", (_req, res) => res.send("Tutor Bot is running!"));
-app.get("/health", (_req, res) => res.json({ status: "ok" }));
+app.get("/health", (_req, res) => res.json({ status: "ok", uptime: process.uptime() }));
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
@@ -30,4 +30,22 @@ app.listen(PORT, () => {
 
   registerHandlers(bot);
   console.log("🤖 Tutor Bot started and polling for messages");
+
+  // Render bepul tier uyquya tushmasligi uchun o'z-o'zini har 14 daqiqada ping
+  const RENDER_URL = process.env["RENDER_EXTERNAL_URL"];
+  if (RENDER_URL) {
+    setInterval(async () => {
+      try {
+        const { default: https } = await import("node:https");
+        https.get(`${RENDER_URL}/health`, (res) => {
+          console.log(`Self-ping: ${res.statusCode}`);
+        }).on("error", (err) => {
+          console.error("Self-ping error:", err.message);
+        });
+      } catch (err) {
+        console.error("Self-ping failed:", err);
+      }
+    }, 14 * 60 * 1000);
+    console.log(`Self-ping faollashtirildi: ${RENDER_URL}/health`);
+  }
 });
