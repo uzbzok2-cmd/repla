@@ -1,6 +1,8 @@
 import type { LearningMode } from "./sessions.js";
 
-export const CARD_NUMBER = "9860 3501 4197 4070";
+export const CARD_NUMBER      = "9860 3501 4197 4070";
+export const CARD_NUMBER_PLAIN = "9860350141974070";
+export const PRICE_TIYIN      = 700000; // 7000 so'm in tiyin
 export const PRICE_UZS = "7 000 so'm";
 export const ADMIN_USERNAME = "drector_uz";
 export const SUBSCRIPTION_DAYS = 7;
