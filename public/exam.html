@@ -7,6 +7,7 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+[data-replit-badge],[class*="replit-badge"],[id*="replit-badge"],.__replit-badge{display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important}
 :root{
   --bg:#1c1c1e;
   --bg2:#2c2c2e;
@@ -901,6 +902,20 @@ function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'
 function escAttr(s) { return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 init();
+
+// Remove "Made with Replit" badge
+(function removeBadge() {
+  function killBadge() {
+    document.querySelectorAll('[data-replit-badge],[class*="replit-badge"],[id*="replit-badge"],.__replit-badge').forEach(el => el.remove());
+    // Also catch iframe badges
+    document.querySelectorAll('iframe').forEach(el => {
+      try { if (el.src && el.src.includes('replit')) el.remove(); } catch {}
+    });
+  }
+  killBadge();
+  const obs = new MutationObserver(killBadge);
+  obs.observe(document.body, { childList: true, subtree: true });
+})();
 </script>
 </body>
 </html>

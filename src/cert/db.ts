@@ -420,12 +420,12 @@ export async function countCertTotal(userExamId: number, section: CertSection): 
 
 // ── Writing submission ────────────────────────────────────────────────
 export async function saveCertWriting(
-  userExamId: number, promptId: number, text: string,
+  userExamId: number, promptId: number | null, text: string,
   score: number, feedback: AiFeedback
 ): Promise<void> {
   await pool.query(
     "INSERT INTO cert_writing_submissions (user_exam_id, prompt_id, text, ai_score, ai_feedback) VALUES ($1,$2,$3,$4,$5)",
-    [userExamId, promptId, text, score, JSON.stringify(feedback)]
+    [userExamId, promptId ?? null, text, score, JSON.stringify(feedback)]
   );
 }
 

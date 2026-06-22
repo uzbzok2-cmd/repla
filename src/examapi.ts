@@ -317,7 +317,7 @@ async function handleSubmitExam(req: Request, res: Response): Promise<void> {
       // ── Evaluate Writing ─────────────────────────────────────────
       const writingText = typeof writingTexts["writing"] === "string" ? writingTexts["writing"] : "";
       const promptText  = session.writingPromptText ?? "Fikrlaringizni yozing";
-      const promptId    = session.writingPromptId ?? 1;
+      const promptId    = session.writingPromptId ?? null;
       let wScore = 55;
       let wDetail = "";
       if (writingText.trim().length > 20) {

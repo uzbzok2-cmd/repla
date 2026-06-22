@@ -6,8 +6,37 @@ import {
 
 export async function seedCertExams(): Promise<void> {
   const b2PassCount = await countPassages("B2");
-  if (b2PassCount > 0) return;
+  if (b2PassCount === 0) {
+    await seedAllData();
+  } else {
+    // Passages already seeded — check if writing prompts are missing and seed them
+    await seedWritingPromptsIfMissing();
+  }
+}
 
+async function seedWritingPromptsIfMissing(): Promise<void> {
+  const b2WpCount = await countWritingPrompts("B2");
+  if (b2WpCount > 0) return;
+
+  console.log("🌱 Seeding missing B2/C1 writing prompts...");
+  const b2WritingPrompts = [
+    "Напишите эссе на тему: «Интернет — польза или вред для молодёжи?». Выразите свою точку зрения, приведите аргументы и примеры. Объём: не менее 150 слов.",
+    "Напишите письмо другу о вашем любимом городе или стране, которую вы хотели бы посетить. Объясните, почему это место вам интересно. Объём: не менее 150 слов.",
+    "Напишите эссе: «Спорт в жизни современного человека». Расскажите о значении спорта, его преимуществах и возможных недостатках. Объём: не менее 150 слов.",
+    "Напишите эссе: «Стоит ли молодым людям путешествовать до поступления в университет?». Приведите аргументы за и против. Объём: не менее 150 слов.",
+  ];
+  const c1WritingPrompts = [
+    "Напишите аналитическое эссе: «Влияние цифровых технологий на когнитивные способности человека». Рассмотрите различные точки зрения, используйте аргументацию и академический стиль. Объём: не менее 220 слов.",
+    "Напишите критическое эссе: «Глобализация: угроза культурному разнообразию или путь к взаимообогащению?». Проанализируйте проблему с разных сторон. Объём: не менее 220 слов.",
+    "Напишите аргументированное эссе: «Искусственный интеллект: партнёр человека или угроза для рынка труда?». Используйте академический стиль и конкретные доводы. Объём: не менее 220 слов.",
+    "Напишите эссе: «Роль государства в регулировании социальных сетей». Рассмотрите вопросы свободы слова и безопасности. Объём: не менее 220 слов.",
+  ];
+  for (const p of b2WritingPrompts) await insertWritingPrompt("B2", p);
+  for (const p of c1WritingPrompts) await insertWritingPrompt("C1", p);
+  console.log("✅ Writing prompts seeded.");
+}
+
+async function seedAllData(): Promise<void> {
   console.log("🌱 Seeding B2/C1 certificate question banks...");
 
   // ══════════════════════════════════════════════════════════════
