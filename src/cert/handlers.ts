@@ -158,6 +158,22 @@ export async function handleCertLevelChosen(
     return;
   }
 
+  if (existing?.status === "in_progress") {
+    await bot.sendMessage(chatId,
+      `⚠️ <b>Siz allaqachon ${level} imtihoniga kirdingiz.</b>\n\n` +
+      `Imtihon 1 martalik hisoblanadi. Yana topshirish uchun qayta to'lov qiling:`,
+      {
+        parse_mode: "HTML",
+        reply_markup: {
+          inline_keyboard: [[
+            { text: `💳 Yana ${level} sotib olish`, callback_data: `cert:pay:${level}` },
+          ]],
+        },
+      }
+    );
+    return;
+  }
+
   if (existing?.status === "completed") {
     const scores = await getCertScores(existing.id);
     if (scores) {
@@ -206,7 +222,7 @@ export async function handleCertPay(
   const phone = profile?.phone_number ?? "Noma'lum";
 
   let ue = await getLatestCertUserExam(chatId, level);
-  if (!ue || ["completed", "expired"].includes(ue.status)) {
+  if (!ue || ["completed", "expired", "in_progress"].includes(ue.status)) {
     ue = await createCertUserExam(chatId, level, profile?.phone_number ?? null);
   }
 
@@ -273,10 +289,17 @@ export async function handleCertPaymentPhoto(bot: TelegramBot, msg: Message, pho
       `━━━━━━━━━━━━━━━━━━━━━━\n` +
       `🎓 Daraja: <b>${level}</b>\n` +
       `💰 Summa: ${CERT_PRICE}\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `✅ Tasdiqlash: /cert_confirm_${chatId}_${level}\n` +
-      `❌ Rad etish: /cert_reject_${chatId}_${level}`;
-    bot.sendPhoto(adminId, photoFileId, { caption, parse_mode: "HTML" }).catch(() => {});
+      `━━━━━━━━━━━━━━━━━━━━━━`;
+    bot.sendPhoto(adminId, photoFileId, {
+      caption,
+      parse_mode: "HTML",
+      reply_markup: {
+        inline_keyboard: [[
+          { text: "✅ Tasdiqlash", callback_data: `cert_cb_confirm:${chatId}:${level}` },
+          { text: "❌ Rad etish",  callback_data: `cert_cb_reject:${chatId}:${level}` },
+        ]],
+      },
+    }).catch(() => {});
   }
 }
 
@@ -1119,7 +1142,36 @@ async function resumeCertExam(bot: TelegramBot, chatId: number, ue: { id: number
 // ══════════════════════════════════════════════════════════════
 export async function registerCertHandlers(bot: TelegramBot): Promise<void> {
 
-  // Admin: confirm cert payment
+  // ── Inline-button admin confirm/reject (cert_cb_confirm / cert_cb_reject) ──
+  bot.on("callback_query", async (query) => {
+    const data = query.data ?? "";
+    if (!data.startsWith("cert_cb_confirm:") && !data.startsWith("cert_cb_reject:")) return;
+    if (!isCertAdmin({ from: query.from, chat: query.message!.chat } as Message)) return;
+    const adminChatId = query.message!.chat.id;
+    await bot.answerCallbackQuery(query.id);
+
+    if (data.startsWith("cert_cb_confirm:")) {
+      const parts  = data.split(":");
+      const userId = parseInt(parts[1]!, 10);
+      const level  = parts[2]! as CertLevel;
+      try { await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: adminChatId, message_id: query.message!.message_id }); } catch { /* ignore */ }
+      await confirmCertPayment(bot, adminChatId, userId, level);
+    } else if (data.startsWith("cert_cb_reject:")) {
+      const parts  = data.split(":");
+      const userId = parseInt(parts[1]!, 10);
+      const level  = parts[2]! as CertLevel;
+      const ue = await getLatestCertUserExam(userId, level);
+      if (ue) await updateCertStatus(ue.id, "pending_payment");
+      try { await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: adminChatId, message_id: query.message!.message_id }); } catch { /* ignore */ }
+      await bot.sendMessage(adminChatId, `❌ Rad etildi. ID: <code>${userId}</code> Level: ${level}`, { parse_mode: "HTML" });
+      bot.sendMessage(userId,
+        `❌ <b>${level} sertifikat to'lovingiz rad etildi.</b>\nMuammo bo'lsa @${ADMIN_USER} bilan bog'laning.`,
+        { parse_mode: "HTML", reply_markup: mainKb() }
+      ).catch(() => {});
+    }
+  });
+
+  // Admin: confirm cert payment (command fallback)
   bot.onText(/\/cert_confirm_(\d+)_(\w+)/, async (msg, match) => {
     if (!isCertAdmin(msg)) return;
     const userId = parseInt(match![1]!, 10);
@@ -1127,7 +1179,7 @@ export async function registerCertHandlers(bot: TelegramBot): Promise<void> {
     await confirmCertPayment(bot, msg.chat.id, userId, level);
   });
 
-  // Admin: reject cert payment
+  // Admin: reject cert payment (command fallback)
   bot.onText(/\/cert_reject_(\d+)_(\w+)/, async (msg, match) => {
     if (!isCertAdmin(msg)) return;
     const userId = parseInt(match![1]!, 10);

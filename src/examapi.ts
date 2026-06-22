@@ -86,6 +86,28 @@ async function handleStartExam(req: Request, res: Response): Promise<void> {
   res.json({ ok: true });
 }
 
+// ── POST /api/exam/timer-start ───────────────────────────────────────
+// Called when the Web App timer actually starts — locks the exam in DB
+async function handleTimerStart(req: Request, res: Response): Promise<void> {
+  const { token } = req.body as { token: string };
+  if (!token) { res.status(400).json({ error: "Token kerak" }); return; }
+
+  const session = getExamSession(token);
+  if (!session) { res.status(404).json({ error: "Sessiya topilmadi" }); return; }
+
+  try {
+    if (session.examType === "ielts") {
+      await updateUserExamStatus(session.userExamId, "in_progress");
+    } else {
+      await updateCertStatus(session.userExamId, "in_progress");
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("timer-start error:", err);
+    res.status(500).json({ error: "Server xatosi" });
+  }
+}
+
 // ── GET /api/exam/data ───────────────────────────────────────────────
 async function handleGetExamData(req: Request, res: Response): Promise<void> {
   const token = req.query["token"] as string | undefined;
@@ -446,6 +468,7 @@ function makeFallbackIeltsSpeaking(): IeltsSpeakingFeedback {
 export function setupExamRoutes(app: Express): void {
   app.get("/exam", (_req, res) => { res.sendFile("exam.html", { root: "public" }); });
   app.post("/api/exam/start", handleStartExam);
+  app.post("/api/exam/timer-start", handleTimerStart);
   app.get("/api/exam/data", handleGetExamData);
   app.post("/api/exam/submit", handleSubmitExam);
 }

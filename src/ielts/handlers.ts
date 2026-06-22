@@ -83,16 +83,60 @@ export async function handleIeltsEntry(bot: TelegramBot, chatId: number): Promis
     );
     return;
   }
-  if (existing && !["pending_payment", "payment_pending_approval", "expired", "completed"].includes(existing.status)) {
-    await resumeExam(bot, chatId, existing.id);
+  // Payment confirmed — re-show the web app link
+  if (existing && existing.status === "paid") {
+    const token = createExamToken({ userId: chatId, examType: "ielts", userExamId: existing.id, examId: existing.exam_id });
+    const webAppUrl = getWebAppUrl(token);
+    await bot.sendMessage(chatId,
+      `✅ <b>To'lovingiz allaqachon tasdiqlangan!</b>\n\nImtihonni boshlash uchun quyidagi tugmani bosing:`,
+      {
+        parse_mode: "HTML",
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "🚀 IELTS imtihonini boshlash", web_app: { url: webAppUrl } },
+          ]],
+        },
+      }
+    );
+    return;
+  }
+  // Exam was started (timer ran) but not submitted — considered used
+  if (existing && existing.status === "in_progress") {
+    await bot.sendMessage(chatId,
+      `⚠️ <b>Siz allaqachon IELTS imtihoniga kirdingiz.</b>\n\n` +
+      `Imtihon 1 martalik hisoblanadi. Yana topshirish uchun qayta to'lov qiling:`,
+      {
+        parse_mode: "HTML",
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "💳 Yana IELTS sotib olish", callback_data: "ielts:pay" },
+          ]],
+        },
+      }
+    );
     return;
   }
   if (existing && existing.status === "completed") {
     const scores = await getScores(existing.id);
     if (scores) {
-      await sendResults(bot, chatId, scores.listening_score!, scores.reading_score!, scores.writing_score!, scores.speaking_score!);
+      await bot.sendMessage(chatId,
+        `✅ <b>Siz IELTS imtihonini allaqachon topshirgansiz.</b>\n\nYana topshirish uchun qayta to'lov qiling:`,
+        {
+          parse_mode: "HTML",
+          reply_markup: {
+            inline_keyboard: [[
+              { text: "💳 Yana IELTS sotib olish", callback_data: "ielts:pay" },
+            ]],
+          },
+        }
+      );
       return;
     }
+  }
+  // Active exam session (listening/reading/writing/speaking) — resume via bot
+  if (existing && !["pending_payment", "payment_pending_approval", "expired", "completed", "paid", "in_progress"].includes(existing.status)) {
+    await resumeExam(bot, chatId, existing.id);
+    return;
   }
 
   await bot.sendMessage(
@@ -774,7 +818,7 @@ export async function handleIeltsPayCallback(bot: TelegramBot, chatId: number, f
   if (!exam) return;
 
   let ue = await getUserExam(chatId);
-  if (!ue || ["completed", "expired"].includes(ue.status)) {
+  if (!ue || ["completed", "expired", "in_progress"].includes(ue.status)) {
     ue = await createUserExam(chatId, exam.id);
   }
 
@@ -828,10 +872,17 @@ export async function handleIeltsPaymentPhoto(bot: TelegramBot, msg: Message, ph
       `🆔 ID: <code>${chatId}</code>\n` +
       `💰 Summa: ${IELTS_PRICE}\n` +
       `🎓 Xizmat: IELTS Mock Exam\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `✅ Tasdiqlash: /ielts_confirm_${chatId}\n` +
-      `❌ Rad etish: /ielts_reject_${chatId}`;
-    bot.sendPhoto(adminId, photoFileId, { caption, parse_mode: "HTML" }).catch(() => {});
+      `━━━━━━━━━━━━━━━━━━━━━━`;
+    bot.sendPhoto(adminId, photoFileId, {
+      caption,
+      parse_mode: "HTML",
+      reply_markup: {
+        inline_keyboard: [[
+          { text: "✅ Tasdiqlash", callback_data: `ielts_cb_confirm:${chatId}` },
+          { text: "❌ Rad etish",  callback_data: `ielts_cb_reject:${chatId}` },
+        ]],
+      },
+    }).catch(() => {});
   }
 }
 
@@ -840,7 +891,50 @@ export async function handleIeltsPaymentPhoto(bot: TelegramBot, msg: Message, ph
 // ═══════════════════════════════════════════════════════════════════════
 export async function registerIeltsHandlers(bot: TelegramBot): Promise<void> {
 
-  // Confirm payment
+  // ── Inline-button admin confirm/reject (ielts_cb_confirm / ielts_cb_reject) ──
+  bot.on("callback_query", async (query) => {
+    const data = query.data ?? "";
+    if (!data.startsWith("ielts_cb_confirm:") && !data.startsWith("ielts_cb_reject:")) return;
+    if (!isIeltsAdmin({ from: query.from, chat: query.message!.chat } as Message)) return;
+    const adminChatId = query.message!.chat.id;
+    await bot.answerCallbackQuery(query.id);
+
+    if (data.startsWith("ielts_cb_confirm:")) {
+      const userId = parseInt(data.split(":")[1]!, 10);
+      const ue = await getUserExam(userId);
+      if (!ue) { await bot.sendMessage(adminChatId, "❌ Foydalanuvchi topilmadi."); return; }
+      await updateUserExamStatus(ue.id, "paid");
+      try { await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: adminChatId, message_id: query.message!.message_id }); } catch { /* ignore */ }
+      await bot.sendMessage(adminChatId, `✅ <b>IELTS to'lov tasdiqlandi!</b>\n👤 ID: <code>${userId}</code>`, { parse_mode: "HTML" });
+      const token = createExamToken({ userId, examType: "ielts", userExamId: ue.id, examId: ue.exam_id });
+      const webAppUrl = getWebAppUrl(token);
+      await bot.sendMessage(userId,
+        `╔══════════════════════════════╗\n` +
+        `   ✅ IELTS IMTIHON TAYYOR!\n` +
+        `╚══════════════════════════════╝\n\n` +
+        `🎓 <b>IELTS Mock Exam</b> uchun to'lovingiz tasdiqlandi!\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `⚠️ Imtihon faqat <b>1 marta</b> topshiriladi.\n` +
+        `⏱ Vaqt Web App ichida hisoblanadi.\n` +
+        `🌐 Savollar chiroyli interfeyda ko'rinadi.\n` +
+        `✅ Variantli savollarda belgi qo'yib javob bering.\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `Boshlashga tayyor bo'lsangiz, quyidagi tugmani bosing:`,
+        { parse_mode: "HTML", reply_markup: { inline_keyboard: [[{ text: "🚀 IELTS imtihonini boshlash", web_app: { url: webAppUrl } }]] } }
+      );
+    } else if (data.startsWith("ielts_cb_reject:")) {
+      const userId = parseInt(data.split(":")[1]!, 10);
+      const ue = await getUserExam(userId);
+      if (ue) await updateUserExamStatus(ue.id, "pending_payment");
+      try { await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: adminChatId, message_id: query.message!.message_id }); } catch { /* ignore */ }
+      await bot.sendMessage(adminChatId, `❌ Rad etildi. ID: <code>${userId}</code>`, { parse_mode: "HTML" });
+      bot.sendMessage(userId, `❌ <b>IELTS to'lovingiz rad etildi.</b>\nMuammo bo'lsa @${ADMIN_USER} bilan bog'laning.`,
+        { parse_mode: "HTML", reply_markup: mainKb() }
+      ).catch(() => {});
+    }
+  });
+
+  // Confirm payment (command fallback)
   bot.onText(/\/ielts_confirm_(\d+)/, async (msg, match) => {
     if (!isIeltsAdmin(msg)) return;
     const userId = parseInt(match![1]!, 10);
@@ -879,7 +973,7 @@ export async function registerIeltsHandlers(bot: TelegramBot): Promise<void> {
     );
   });
 
-  // Reject payment
+  // Reject payment (command fallback)
   bot.onText(/\/ielts_reject_(\d+)/, async (msg, match) => {
     if (!isIeltsAdmin(msg)) return;
     const userId = parseInt(match![1]!, 10);
