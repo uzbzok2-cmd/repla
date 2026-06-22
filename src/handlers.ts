@@ -14,6 +14,7 @@ import {
   getProfile, upsertProfile, updateProfilePhone, touchLastSeen,
   isRegistered, getRegStep, setRegStep, clearRegStep,
 } from "./registration.js";
+import { getAdminInfoStats } from "./admin-stats.js";
 import {
   handleCertEntry, handleCertLevelChosen, handleCertPay,
   handleCertPaymentPhoto, startCertExam,
@@ -74,6 +75,7 @@ const BTN_REFERRAL  = "🔗 Do'st taklif";
 const BTN_STATS     = "📈 Statistika";
 const BTN_HELP      = "ℹ️ Yordam";
 const BTN_BACK      = "🔙 Bosh menyu";
+const BTN_INFO      = "📊 Info";
 
 // ── Message ID tracking for deletion ─────────────────────────────────
 const regBotMsg     = new Map<number, number>(); // chatId -> last reg bot msg ID
@@ -99,6 +101,22 @@ const MAIN_KEYBOARD: ReplyKeyboardMarkup = {
   resize_keyboard: true,
   one_time_keyboard: false,
 };
+
+const ADMIN_KEYBOARD: ReplyKeyboardMarkup = {
+  keyboard: [
+    [{ text: BTN_RUSSIAN }, { text: BTN_ENGLISH }, { text: BTN_TURKISH }],
+    [{ text: BTN_STATUS }, { text: BTN_SUBSCRIBE }],
+    [{ text: BTN_IELTS }, { text: BTN_CERT }],
+    [{ text: BTN_REFERRAL }, { text: BTN_STATS }],
+    [{ text: BTN_HELP }, { text: BTN_INFO }],
+  ],
+  resize_keyboard: true,
+  one_time_keyboard: false,
+};
+
+function mkb(chatId: number): ReplyKeyboardMarkup {
+  return getAdminChatId() === chatId ? ADMIN_KEYBOARD : MAIN_KEYBOARD;
+}
 
 function langInlineKeyboard(): InlineKeyboardMarkup {
   return {
@@ -269,13 +287,13 @@ export function registerHandlers(bot: TelegramBot): void {
       `🎓 Rus tili B2/C1 sertifikati: <b>28 000 so'm</b>\n` +
       `━━━━━━━━━━━━━━━━━━━━\n\n` +
       `👇 Qaysi tilni o'rganmoqchisiz?`,
-      { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }
+      { parse_mode: "HTML", reply_markup: mkb(chatId) }
     );
   });
 
   // ── /mode ────────────────────────────────────────────────────────
   bot.onText(/\/mode/, async (msg) => {
-    await bot.sendMessage(msg.chat.id, "🔄 Tilni tanlang:", { reply_markup: MAIN_KEYBOARD });
+    await bot.sendMessage(msg.chat.id, "🔄 Tilni tanlang:", { reply_markup: mkb(msg.chat.id) });
   });
 
   // ── /clear ───────────────────────────────────────────────────────
@@ -284,20 +302,20 @@ export function registerHandlers(bot: TelegramBot): void {
     await bot.sendMessage(
       msg.chat.id,
       "🗑 <b>Suhbat tarixi tozalandi!</b>\nDavom eting 🎤",
-      { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }
+      { parse_mode: "HTML", reply_markup: mkb(chatId) }
     );
   });
 
   // ── /stats ───────────────────────────────────────────────────────
   bot.onText(/\/stats/, async (msg) => {
-    await bot.sendMessage(msg.chat.id, formatStats(msg.chat.id), { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD });
+    await bot.sendMessage(msg.chat.id, formatStats(msg.chat.id), { parse_mode: "HTML", reply_markup: mkb(msg.chat.id) });
   });
 
   // ── /status ──────────────────────────────────────────────────────
   bot.onText(/\/status/, async (msg) => {
     await bot.sendMessage(msg.chat.id, formatStatus(msg.chat.id), {
       parse_mode: "HTML",
-      reply_markup: MAIN_KEYBOARD,
+      reply_markup: mkb(msg.chat.id),
     });
   });
 
@@ -327,7 +345,7 @@ export function registerHandlers(bot: TelegramBot): void {
         `• Do'stingiz qo'shilsa → u ham <b>3 ta bepul xabar</b> oladi (har tilga)\n` +
         `• Siz → har tilga <b>+3 ta bepul xabar</b> olasiz\n\n` +
         `👥 Qancha ko'p taklif, shuncha ko'p bepul xabar!`,
-        { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }
+        { parse_mode: "HTML", reply_markup: mkb(chatId) }
       );
     } catch {
       await bot.sendMessage(chatId, "Havola olishda xatolik. Qaytadan urinib ko'ring.");
@@ -349,7 +367,7 @@ export function registerHandlers(bot: TelegramBot): void {
     dbSaveAdminChatId(msg.chat.id).catch(() => {});
     await bot.sendMessage(msg.chat.id, formatAdminStats(), {
       parse_mode: "HTML",
-      reply_markup: MAIN_KEYBOARD,
+      reply_markup: mkb(msg.chat.id),
     });
   });
 
@@ -383,7 +401,7 @@ export function registerHandlers(bot: TelegramBot): void {
       `━━━━━━━━━━━━━━━━━━━━\n\n` +
       `🚀 O'qituvchingiz bilan suhbatni boshlang!\n` +
       `🎤 Ovozli yoki ✍️ matnli xabar yuboring`,
-      { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }
+      { parse_mode: "HTML", reply_markup: mkb(chatId) }
     ).catch(() => {});
   });
 
@@ -401,7 +419,7 @@ export function registerHandlers(bot: TelegramBot): void {
       userId,
       `❌ <b>To'lovingiz tasdiqlanmadi.</b>\n\n` +
       `Muammo bo'lsa @${ADMIN_USERNAME} bilan bog'laning.`,
-      { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }
+      { parse_mode: "HTML", reply_markup: mkb(chatId) }
     ).catch(() => {});
   });
 
@@ -457,7 +475,7 @@ export function registerHandlers(bot: TelegramBot): void {
         `<b>7 kunlik cheksiz dostupingiz ochildi!</b>\n` +
         `━━━━━━━━━━━━━━━━━━━━\n\n` +
         `🚀 O'qituvchingiz bilan suhbatni boshlang!`,
-        { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }
+        { parse_mode: "HTML", reply_markup: mkb(userId) }
       ).catch(() => {});
     } else if (data.startsWith("adm_reject:")) {
       if (!isAdmin({ from: query.from, chat: query.message!.chat } as Message)) return;
@@ -468,7 +486,7 @@ export function registerHandlers(bot: TelegramBot): void {
       await bot.sendMessage(chatId, `❌ Rad etildi. ID: <code>${userId}</code>`, { parse_mode: "HTML" });
       bot.sendMessage(userId,
         `❌ <b>To'lovingiz tasdiqlanmadi.</b>\n\nMuammo bo'lsa @${ADMIN_USERNAME} bilan bog'laning.`,
-        { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }
+        { parse_mode: "HTML", reply_markup: mkb(userId) }
       ).catch(() => {});
     } else if (data === "ielts:pay") {
       await handleIeltsPayCallback(bot, chatId, query.from.first_name, query.from.username);
@@ -555,7 +573,7 @@ export function registerHandlers(bot: TelegramBot): void {
         `━━━━━━━━━━━━━━━━━━━━\n\n` +
         `✅ Endi botning barcha imkoniyatlaridan foydalanishingiz mumkin!\n\n` +
         `👇 Rejim tanlang:`,
-        { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }
+        { parse_mode: "HTML", reply_markup: mkb(chatId) }
       );
     }
   });
@@ -633,7 +651,7 @@ export function registerHandlers(bot: TelegramBot): void {
       `⏳ Admin tekshirib, tez orada tasdiqlaydi.\n` +
       `Odatda <b>5–15 daqiqa</b> ichida javob beriladi.\n\n` +
       `🙏 Sabr qiling, tez orada ${langLabel(flow.language)} dostupingiz ochiladi!`,
-      { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }
+      { parse_mode: "HTML", reply_markup: mkb(chatId) }
     );
 
     // Forward receipt photo to admin with inline buttons
@@ -725,7 +743,7 @@ export function registerHandlers(bot: TelegramBot): void {
       `⏳ Admin tekshirib, tez orada tasdiqlaydi.\n` +
       `Odatda <b>5–15 daqiqa</b> ichida javob beriladi.\n\n` +
       `🙏 Sabr qiling, tez orada ${langLabel(flow.language)} dostupingiz ochiladi!`,
-      { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }
+      { parse_mode: "HTML", reply_markup: mkb(chatId) }
     );
 
     const adminId = getAdminChatId();
@@ -853,7 +871,7 @@ export function registerHandlers(bot: TelegramBot): void {
 
     const mode = getMode(chatId);
     if (!mode) {
-      await bot.sendMessage(chatId, "Iltimos, avval rejimni tanlang 👇", { reply_markup: MAIN_KEYBOARD });
+      await bot.sendMessage(chatId, "Iltimos, avval rejimni tanlang 👇", { reply_markup: mkb(chatId) });
       return;
     }
 
@@ -906,7 +924,7 @@ export function registerHandlers(bot: TelegramBot): void {
         await bot.sendMessage(
           chatId,
           `⚠️ <b>${langLabel(mode)} uchun 1 ta bepul xabar qoldi!</b>\nObuna olish uchun pastdagi tugmani bosing 👇`,
-          { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }
+          { parse_mode: "HTML", reply_markup: mkb(chatId) }
         );
       }
     } catch (err) {
@@ -1065,7 +1083,7 @@ export function registerHandlers(bot: TelegramBot): void {
     // ── Bosh menyu (exit help mode) ───────────────────────────────
     if (text === BTN_BACK) {
       clearFlow(chatId);
-      await bot.sendMessage(chatId, `🏠 <b>Bosh menyu</b>`, { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD });
+      await bot.sendMessage(chatId, `🏠 <b>Bosh menyu</b>`, { parse_mode: "HTML", reply_markup: mkb(chatId) });
       return;
     }
 
@@ -1092,12 +1110,23 @@ export function registerHandlers(bot: TelegramBot): void {
     // ── Button shortcuts ──────────────────────────────────────────
     if (text === BTN_CERT)  { await handleCertEntry(bot, chatId); return; }
     if (text === BTN_IELTS) { await handleIeltsEntry(bot, chatId); return; }
-    if (text === BTN_STATUS)    { await bot.sendMessage(chatId, formatStatus(chatId), { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }); return; }
+    if (text === BTN_INFO) {
+      if (!isAdmin(msg)) return;
+      try {
+        await bot.sendMessage(chatId, "⏳ Ma'lumotlar yuklanmoqda...", { parse_mode: "HTML" });
+        const stats = await getAdminInfoStats();
+        await bot.sendMessage(chatId, stats, { parse_mode: "HTML", reply_markup: mkb(chatId) });
+      } catch (e) {
+        await bot.sendMessage(chatId, `❌ Xatolik: ${(e as Error).message}`, { reply_markup: mkb(chatId) });
+      }
+      return;
+    }
+    if (text === BTN_STATUS)    { await bot.sendMessage(chatId, formatStatus(chatId), { parse_mode: "HTML", reply_markup: mkb(chatId) }); return; }
     if (text === BTN_SUBSCRIBE) {
       await bot.sendMessage(chatId, `💳 <b>Haftalik obuna</b>\n\n💰 Narxi: <b>${PRICE_UZS}</b> / til / hafta\n\n👇 Qaysi til?`, { parse_mode: "HTML", reply_markup: langInlineKeyboard() });
       return;
     }
-    if (text === BTN_STATS) { await bot.sendMessage(chatId, formatStats(chatId), { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }); return; }
+    if (text === BTN_STATS) { await bot.sendMessage(chatId, formatStats(chatId), { parse_mode: "HTML", reply_markup: mkb(chatId) }); return; }
     if (text === BTN_HELP)  { await showHelpMessage(bot, chatId); return; }
     if (text === BTN_REFERRAL) {
       try {
@@ -1130,7 +1159,7 @@ export function registerHandlers(bot: TelegramBot): void {
         text === BTN_ENGLISH ? "english" : "turkish";
       setMode(chatId, mode);
       clearFlow(chatId);
-      await bot.sendMessage(chatId, getModeWelcome(mode), { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD });
+      await bot.sendMessage(chatId, getModeWelcome(mode), { parse_mode: "HTML", reply_markup: mkb(chatId) });
       return;
     }
 
@@ -1145,14 +1174,14 @@ export function registerHandlers(bot: TelegramBot): void {
     }
 
     // ── Legacy full-text language buttons (backward compat) ───────
-    if (text === "🇷🇺 Ruscha o'rganish") { setMode(chatId, "russian"); clearFlow(chatId); await bot.sendMessage(chatId, getModeWelcome("russian"), { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }); return; }
-    if (text === "🇬🇧 Inglizcha o'rganish") { setMode(chatId, "english"); clearFlow(chatId); await bot.sendMessage(chatId, getModeWelcome("english"), { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }); return; }
-    if (text === "🇹🇷 Turkcha o'rganish") { setMode(chatId, "turkish"); clearFlow(chatId); await bot.sendMessage(chatId, getModeWelcome("turkish"), { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }); return; }
+    if (text === "🇷🇺 Ruscha o'rganish") { setMode(chatId, "russian"); clearFlow(chatId); await bot.sendMessage(chatId, getModeWelcome("russian"), { parse_mode: "HTML", reply_markup: mkb(chatId) }); return; }
+    if (text === "🇬🇧 Inglizcha o'rganish") { setMode(chatId, "english"); clearFlow(chatId); await bot.sendMessage(chatId, getModeWelcome("english"), { parse_mode: "HTML", reply_markup: mkb(chatId) }); return; }
+    if (text === "🇹🇷 Turkcha o'rganish") { setMode(chatId, "turkish"); clearFlow(chatId); await bot.sendMessage(chatId, getModeWelcome("turkish"), { parse_mode: "HTML", reply_markup: mkb(chatId) }); return; }
 
     // ── AI conversation ───────────────────────────────────────────
     const mode = getMode(chatId);
     if (!mode) {
-      await bot.sendMessage(chatId, "Iltimos, avval rejimni tanlang 👇", { reply_markup: MAIN_KEYBOARD });
+      await bot.sendMessage(chatId, "Iltimos, avval rejimni tanlang 👇", { reply_markup: mkb(chatId) });
       return;
     }
 
@@ -1172,7 +1201,7 @@ export function registerHandlers(bot: TelegramBot): void {
       const hasCorrection = reply.includes("❌") || reply.includes("✅");
       if (hasCorrection) recordCorrection(chatId);
 
-      await bot.sendMessage(chatId, reply, { reply_markup: MAIN_KEYBOARD });
+      await bot.sendMessage(chatId, reply, { reply_markup: mkb(chatId) });
 
       const audioBuffer = await textToSpeech(reply, mode);
       await bot.sendVoice(chatId, audioBuffer);
@@ -1181,12 +1210,12 @@ export function registerHandlers(bot: TelegramBot): void {
         await bot.sendMessage(
           chatId,
           `⚠️ <b>${langLabel(mode)} uchun 1 ta bepul xabar qoldi!</b>\nObuna olish uchun tugmani bosing 👇`,
-          { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }
+          { parse_mode: "HTML", reply_markup: mkb(chatId) }
         );
       }
     } catch (err) {
       console.error("Text error:", err);
-      await bot.sendMessage(chatId, "Xatolik yuz berdi 😅 Qaytadan urinib ko'ring!", { reply_markup: MAIN_KEYBOARD });
+      await bot.sendMessage(chatId, "Xatolik yuz berdi 😅 Qaytadan urinib ko'ring!", { reply_markup: mkb(chatId) });
     }
   });
 }
