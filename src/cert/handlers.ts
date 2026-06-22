@@ -325,7 +325,7 @@ async function sendReadyNotification(bot: TelegramBot, chatId: number, level: Ce
   const levelName = level === "B2" ? "B2 Upper-Intermediate" : "C1 Advanced";
   const token = createExamToken({ userId: chatId, examType: "cert", userExamId, level });
   const webAppUrl = getWebAppUrl(token);
-  await bot.sendMessage(
+  const sent = await bot.sendMessage(
     chatId,
     `╔══════════════════════════════╗\n` +
     `   ✅ IMTIHON TAYYOR!\n` +
@@ -347,6 +347,9 @@ async function sendReadyNotification(bot: TelegramBot, chatId: number, level: Ce
       },
     }
   );
+  // Store message_id so it can be deleted when exam timer starts
+  const { updateExamSession } = await import("../webapp.js");
+  updateExamSession(token, { notificationMsgId: sent.message_id });
 }
 
 // ══════════════════════════════════════════════════════════════
