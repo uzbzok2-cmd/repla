@@ -10,6 +10,7 @@ export interface ExamWebSession {
   writingPromptId?: number;
   writingPromptText?: string;
   started?: boolean;
+  notificationMsgId?: number;
 }
 
 const sessions = new Map<string, ExamWebSession>();
