@@ -9,6 +9,7 @@ export interface ExamWebSession {
   level?: string;
   writingPromptId?: number;
   writingPromptText?: string;
+  started?: boolean;
 }
 
 const sessions = new Map<string, ExamWebSession>();

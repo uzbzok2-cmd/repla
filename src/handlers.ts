@@ -73,6 +73,16 @@ const BTN_SUBSCRIBE = "💳 Obuna olish";
 const BTN_REFERRAL  = "🔗 Do'st taklif";
 const BTN_STATS     = "📈 Statistika";
 const BTN_HELP      = "ℹ️ Yordam";
+const BTN_BACK      = "🔙 Bosh menyu";
+
+// ── Message ID tracking for deletion ─────────────────────────────────
+const regBotMsg     = new Map<number, number>(); // chatId -> last reg bot msg ID
+const paymentInstrMsg = new Map<number, number>(); // chatId -> payment instr msg ID
+
+async function safeDelete(bot: TelegramBot, chatId: number, msgId: number | undefined): Promise<void> {
+  if (!msgId) return;
+  try { await bot.deleteMessage(chatId, msgId); } catch { /* ignore */ }
+}
 
 // ── Keyboards ────────────────────────────────────────────────────────
 const BTN_IELTS = "📝 IELTS Mock Exam";
@@ -147,7 +157,7 @@ async function showNoAccessMessage(bot: TelegramBot, chatId: number, lang: Learn
 
 async function showPaymentInstructions(bot: TelegramBot, chatId: number, lang: LearningMode): Promise<void> {
   setFlow(chatId, { state: "waiting_receipt", language: lang });
-  await bot.sendMessage(
+  const sent = await bot.sendMessage(
     chatId,
     `🎓 <b>HAFTALIK OBUNA — ${langLabel(lang).toUpperCase()}</b>\n\n` +
     `━━━━━━━━━━━━━━━━━━━━\n` +
@@ -158,33 +168,34 @@ async function showPaymentInstructions(bot: TelegramBot, chatId: number, lang: L
     `💳 <b>Quyidagi karta raqamiga to'lov qiling:</b>\n\n` +
     `<code>${CARD_NUMBER}</code>\n\n` +
     `━━━━━━━━━━━━━━━━━━━━\n` +
-    `📸 To'lov qilgandan so'ng <b>chek rasmini (skrinshotini) shu yerga yuboring</b>\n\n` +
+    `📸 To'lov qilgandan so'ng <b>chek rasmini</b> yoki <b>PDF hujjatini</b> shu yerga yuboring\n\n` +
     `⚡ Odatda <b>5–15 daqiqa</b> ichida tasdiqlanadi\n` +
     `✅ Admin tasdiqlashi bilan dostupingiz darhol ochiladi!`,
     { parse_mode: "HTML" }
   );
+  paymentInstrMsg.set(chatId, sent.message_id);
 }
 
 async function showHelpMessage(bot: TelegramBot, chatId: number): Promise<void> {
+  setFlow(chatId, { state: "help_mode" });
+  const helpKb = {
+    keyboard: [[{ text: BTN_BACK }]],
+    resize_keyboard: true,
+    one_time_keyboard: false,
+  };
   await bot.sendMessage(
     chatId,
-    `╔══════════════════════╗\n` +
-    `   ℹ️ <b>BOT HAQIDA</b>\n` +
-    `╚══════════════════════╝\n\n` +
-    `🌍 <b>Qo'llab-quvvatlanadigan tillar:</b>\n` +
-    `🇷🇺 Ruscha — Natasha\n` +
-    `🇬🇧 Inglizcha — Emma\n` +
-    `🇹🇷 Turkcha — Aysha\n\n` +
-    `🆓 <b>Bepul sinov:</b> har til uchun 3 ta xabar\n` +
-    `💳 <b>Obuna:</b> ${PRICE_UZS} / til / hafta\n\n` +
-    `━━━━━━━━━━━━━━━━━━━━\n` +
-    `📊 <b>Obuna holati</b> — tugma\n` +
-    `💳 <b>Obuna olish</b> — tugma\n` +
-    `🔗 <b>Do'st taklif</b> — do'st taklif qilish\n` +
-    `📈 <b>Statistika</b> — o'rganish statistikasi\n` +
-    `━━━━━━━━━━━━━━━━━━━━\n\n` +
-    `❓ Savol bo'lsa: @${ADMIN_USERNAME}`,
-    { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }
+    `╔══════════════════════════╗\n` +
+    `   🛟 <b>OPERATOR BILAN BOG'LANISH</b>\n` +
+    `╚══════════════════════════╝\n\n` +
+    `👨‍💼 <b>Hurmatli foydalanuvchi!</b>\n\n` +
+    `Quyida savolingizni yozing yoki rasm / video / fayl yuboring — operatorimiz tez orada ko'rib chiqadi va javob beradi.\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `📞 Bevosita murojaat: <b>@${ADMIN_USERNAME}</b>\n` +
+    `⏰ Ish vaqti: <b>09:00 – 22:00</b>\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `⬇️ <i>Xabaringizni yuboring:</i>`,
+    { parse_mode: "HTML", reply_markup: helpKb }
   );
 }
 
@@ -230,7 +241,7 @@ export function registerHandlers(bot: TelegramBot): void {
     if (!registered) {
       clearRegStep(userId);
       setRegStep(userId, { step: "asking_name" });
-      await bot.sendMessage(
+      const m = await bot.sendMessage(
         chatId,
         `👋 <b>Xush kelibsiz!</b>\n\n` +
         `🤖 Men AI til o'qituvchisi va Rus tili sertifikat bo'timan!\n\n` +
@@ -242,6 +253,7 @@ export function registerHandlers(bot: TelegramBot): void {
         `(Ism va familiya, masalan: Alisher Karimov)`,
         { parse_mode: "HTML", reply_markup: { remove_keyboard: true } }
       );
+      regBotMsg.set(userId, m.message_id);
       return;
     }
 
@@ -278,7 +290,7 @@ export function registerHandlers(bot: TelegramBot): void {
 
   // ── /stats ───────────────────────────────────────────────────────
   bot.onText(/\/stats/, async (msg) => {
-    await bot.sendMessage(msg.chat.id, formatStats(msg.chat.id), { reply_markup: MAIN_KEYBOARD });
+    await bot.sendMessage(msg.chat.id, formatStats(msg.chat.id), { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD });
   });
 
   // ── /status ──────────────────────────────────────────────────────
@@ -419,6 +431,7 @@ export function registerHandlers(bot: TelegramBot): void {
 
     if (data.startsWith("pay_lang:")) {
       const lang = data.split(":")[1] as LearningMode;
+      await safeDelete(bot, chatId, query.message!.message_id).catch(() => {});
       await showPaymentInstructions(bot, chatId, lang);
     } else if (data === "ielts:pay") {
       await handleIeltsPayCallback(bot, chatId, query.from.first_name, query.from.username);
@@ -453,7 +466,8 @@ export function registerHandlers(bot: TelegramBot): void {
       const step   = getRegStep(userId);
       if (step.step === "asking_gender") {
         setRegStep(userId, { step: "asking_phone", fullName: step.fullName, age: step.age, gender });
-        await bot.sendMessage(chatId,
+        await safeDelete(bot, chatId, regBotMsg.get(userId));
+        const m = await bot.sendMessage(chatId,
           `✅ <b>Jins: ${gender}</b>\n\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
           `📊 Ro'yxatdan o'tish: <b>4/4</b>\n` +
@@ -469,6 +483,7 @@ export function registerHandlers(bot: TelegramBot): void {
             },
           }
         );
+        regBotMsg.set(userId, m.message_id);
       }
     }
   });
@@ -486,17 +501,20 @@ export function registerHandlers(bot: TelegramBot): void {
       await upsertProfile(userId, step.fullName, phone, step.age, step.gender);
       clearRegStep(userId);
 
+      await safeDelete(bot, chatId, regBotMsg.get(userId));
+      regBotMsg.delete(userId);
+
       const profile = await getProfile(userId);
       await bot.sendMessage(
         chatId,
-        `✅ <b>Ro'yxatdan o'tdingiz!</b>\n\n` +
+        `🎉 <b>Ro'yxatdan muvaffaqiyatli o'tdingiz!</b>\n\n` +
         `━━━━━━━━━━━━━━━━━━━━\n` +
         `👤 Ism: <b>${profile?.full_name}</b>\n` +
         `📞 Telefon: <code>${phone}</code>\n` +
         `🎂 Yosh: <b>${profile?.age}</b>\n` +
         `👤 Jins: <b>${profile?.gender}</b>\n` +
         `━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `🎉 Xush kelibsiz! Endi botning barcha imkoniyatlaridan foydalanishingiz mumkin.\n\n` +
+        `✅ Endi botning barcha imkoniyatlaridan foydalanishingiz mumkin!\n\n` +
         `👇 Rejim tanlang:`,
         { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }
       );
@@ -508,6 +526,28 @@ export function registerHandlers(bot: TelegramBot): void {
   // ════════════════════════════════════════════════════════════════════
   bot.on("photo", async (msg) => {
     const chatId = msg.chat.id;
+    const flow   = getFlow(chatId);
+
+    // Help mode: forward photo to admin
+    if (flow.state === "help_mode") {
+      const adminId = getAdminChatId();
+      if (adminId) {
+        const name = msg.from?.username ? `@${msg.from.username}` : (msg.from?.first_name ?? "Foydalanuvchi");
+        const photos = msg.photo!;
+        const fileId = photos[photos.length - 1].file_id;
+        bot.sendPhoto(adminId, fileId, {
+          caption: `📸 <b>Yordam so'rovi (rasm)</b>\n👤 ${name} | <code>${chatId}</code>`,
+          parse_mode: "HTML",
+        }).catch(() => {});
+      }
+      await bot.sendMessage(chatId,
+        `✅ <b>Xabaringiz qabul qilindi!</b>\n\n` +
+        `⏳ Operatorimiz tez orada ko'rib chiqadi va javob beradi.\n\n` +
+        `🙏 Biz bilan bo'lganingiz uchun <b>Rahmat!</b> Iltimos kuting... 💬`,
+        { parse_mode: "HTML" }
+      );
+      return;
+    }
 
     // Route to cert payment if user is in cert payment pending state
     const certPending = getCertPaymentPending(chatId);
@@ -527,7 +567,6 @@ export function registerHandlers(bot: TelegramBot): void {
       return;
     }
 
-    const flow   = getFlow(chatId);
     if (flow.state !== "waiting_receipt" || !flow.language) return;
 
     const photos     = msg.photo!;
@@ -542,6 +581,11 @@ export function registerHandlers(bot: TelegramBot): void {
       requestedAt: new Date(),
     };
     addPending(payment);
+
+    // Delete payment instruction message
+    await safeDelete(bot, chatId, paymentInstrMsg.get(chatId));
+    paymentInstrMsg.delete(chatId);
+
     clearFlow(chatId);
 
     await bot.sendMessage(
@@ -574,6 +618,111 @@ export function registerHandlers(bot: TelegramBot): void {
   });
 
   // ════════════════════════════════════════════════════════════════════
+  // DOCUMENT — payment receipt (PDF) or help mode
+  // ════════════════════════════════════════════════════════════════════
+  bot.on("document", async (msg) => {
+    const chatId = msg.chat.id;
+    const flow   = getFlow(chatId);
+    const fileId = msg.document?.file_id;
+    if (!fileId) return;
+
+    // Help mode: forward document to admin
+    if (flow.state === "help_mode") {
+      const adminId = getAdminChatId();
+      if (adminId) {
+        const name = msg.from?.username ? `@${msg.from.username}` : (msg.from?.first_name ?? "Foydalanuvchi");
+        bot.sendDocument(adminId, fileId, {
+          caption: `📎 <b>Yordam so'rovi (fayl)</b>\n👤 ${name} | <code>${chatId}</code>`,
+          parse_mode: "HTML",
+        }).catch(() => {});
+      }
+      await bot.sendMessage(chatId,
+        `✅ <b>Xabaringiz qabul qilindi!</b>\n\n` +
+        `⏳ Operatorimiz tez orada ko'rib chiqadi va javob beradi.\n\n` +
+        `🙏 Biz bilan bo'lganingiz uchun <b>Rahmat!</b> Iltimos kuting... 💬`,
+        { parse_mode: "HTML" }
+      );
+      return;
+    }
+
+    // Route cert/ielts pending payments
+    const certPending = getCertPaymentPending(chatId);
+    if (certPending) {
+      await handleCertPaymentPhoto(bot, msg, fileId);
+      return;
+    }
+    const ieltsPending = getIeltsPaymentPending(chatId);
+    if (ieltsPending) {
+      await handleIeltsPaymentPhoto(bot, msg, fileId);
+      return;
+    }
+
+    if (flow.state !== "waiting_receipt" || !flow.language) return;
+
+    const payment: PendingPayment = {
+      userId:      chatId,
+      firstName:   msg.from?.first_name ?? "Noma'lum",
+      username:    msg.from?.username,
+      language:    flow.language,
+      photoFileId: fileId,
+      requestedAt: new Date(),
+    };
+    addPending(payment);
+
+    await safeDelete(bot, chatId, paymentInstrMsg.get(chatId));
+    paymentInstrMsg.delete(chatId);
+    clearFlow(chatId);
+
+    await bot.sendMessage(
+      chatId,
+      `✅ <b>Chekingiz qabul qilindi!</b>\n\n` +
+      `⏳ Admin tekshirib, tez orada tasdiqlaydi.\n` +
+      `Odatda <b>5–15 daqiqa</b> ichida javob beriladi.\n\n` +
+      `🙏 Sabr qiling, tez orada ${langLabel(flow.language)} dostupingiz ochiladi!`,
+      { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }
+    );
+
+    const adminId = getAdminChatId();
+    if (adminId) {
+      const name    = payment.username ? `@${payment.username}` : payment.firstName;
+      const caption =
+        `💳 <b>YANGI TO'LOV SO'ROVI (PDF)!</b>\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `👤 Foydalanuvchi: ${name}\n` +
+        `🆔 ID: <code>${chatId}</code>\n` +
+        `🌍 Til: ${langLabel(flow.language)}\n` +
+        `💰 Summa: ${PRICE_UZS}\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `✅ Tasdiqlash: /confirm_${chatId}_${flow.language}\n` +
+        `❌ Rad etish: /reject_${chatId}`;
+      bot.sendDocument(adminId, fileId, { caption, parse_mode: "HTML" }).catch(() => {});
+    }
+  });
+
+  // ════════════════════════════════════════════════════════════════════
+  // VIDEO — help mode forwarding
+  // ════════════════════════════════════════════════════════════════════
+  bot.on("video", async (msg) => {
+    const chatId = msg.chat.id;
+    const flow   = getFlow(chatId);
+    if (flow.state !== "help_mode") return;
+    const adminId = getAdminChatId();
+    if (adminId && msg.video?.file_id) {
+      const name = msg.from?.username ? `@${msg.from.username}` : (msg.from?.first_name ?? "Foydalanuvchi");
+      bot.sendVideo(adminId, msg.video.file_id, {
+        caption: `🎥 <b>Yordam so'rovi (video)</b>\n👤 ${name} | <code>${chatId}</code>`,
+        parse_mode: "HTML",
+      }).catch(() => {});
+    }
+    await bot.sendMessage(chatId,
+      `✅ <b>Xabaringiz qabul qilindi!</b>\n\n` +
+      `⏳ Operatorimiz tez orada ko'rib chiqadi va javob beradi.\n\n` +
+      `🙏 Biz bilan bo'lganingiz uchun <b>Rahmat!</b> Iltimos kuting... 💬`,
+      { parse_mode: "HTML" }
+    );
+  });
+
+  // ════════════════════════════════════════════════════════════════════
   // VOICE
   // ════════════════════════════════════════════════════════════════════
   bot.on("voice", async (msg) => {
@@ -584,6 +733,26 @@ export function registerHandlers(bot: TelegramBot): void {
 
     if (isAdmin(msg)) { setAdminChatId(chatId); dbSaveAdminChatId(chatId).catch(() => {}); }
     registerUser(userId, msg.from!.first_name, msg.from?.username);
+
+    // Help mode: forward voice to admin
+    const flowV = getFlow(chatId);
+    if (flowV.state === "help_mode") {
+      const adminId = getAdminChatId();
+      if (adminId) {
+        const name = msg.from?.username ? `@${msg.from.username}` : (msg.from?.first_name ?? "Foydalanuvchi");
+        bot.sendVoice(adminId, fileId, {
+          caption: `🎤 <b>Yordam so'rovi (ovoz)</b>\n👤 ${name} | <code>${chatId}</code>`,
+          parse_mode: "HTML",
+        }).catch(() => {});
+      }
+      await bot.sendMessage(chatId,
+        `✅ <b>Xabaringiz qabul qilindi!</b>\n\n` +
+        `⏳ Operatorimiz tez orada ko'rib chiqadi va javob beradi.\n\n` +
+        `🙏 Biz bilan bo'lganingiz uchun <b>Rahmat!</b> Iltimos kuting... 💬`,
+        { parse_mode: "HTML" }
+      );
+      return;
+    }
 
     // Block voice during registration
     const regStepV = getRegStep(userId);
@@ -719,19 +888,21 @@ export function registerHandlers(bot: TelegramBot): void {
 
       if (regStep.step === "asking_name") {
         const fullName = text.trim();
-        // Validate: no emojis, at least 2 words, only letters allowed
         const isValidName = /^[\p{L}\s'-]+$/u.test(fullName) && fullName.split(/\s+/).length >= 2 && fullName.length >= 4 && !isButtonText;
         if (!isValidName) {
-          await bot.sendMessage(chatId,
+          await safeDelete(bot, chatId, regBotMsg.get(userId));
+          const m = await bot.sendMessage(chatId,
             `❗ <b>Iltimos, to'liq ismingizni kiriting.</b>\n\n` +
             `Ism va familiya harflar bilan yozilishi kerak.\n` +
             `Masalan: <b>Alisher Karimov</b>`,
             { parse_mode: "HTML", reply_markup: { remove_keyboard: true } }
           );
+          regBotMsg.set(userId, m.message_id);
           return;
         }
         setRegStep(userId, { step: "asking_age", fullName });
-        await bot.sendMessage(chatId,
+        await safeDelete(bot, chatId, regBotMsg.get(userId));
+        const m = await bot.sendMessage(chatId,
           `✅ <b>Ajoyib, ${fullName}!</b>\n\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
           `📊 Ro'yxatdan o'tish: <b>2/4</b>\n` +
@@ -740,21 +911,25 @@ export function registerHandlers(bot: TelegramBot): void {
           `(faqat raqam, masalan: <code>22</code>)`,
           { parse_mode: "HTML", reply_markup: { remove_keyboard: true } }
         );
+        regBotMsg.set(userId, m.message_id);
         return;
       }
 
       if (regStep.step === "asking_age") {
         const age = parseInt(text.trim(), 10);
         if (isNaN(age) || age < 10 || age > 80 || isButtonText) {
-          await bot.sendMessage(chatId,
+          await safeDelete(bot, chatId, regBotMsg.get(userId));
+          const m = await bot.sendMessage(chatId,
             `❗ <b>Yoshingizni raqam bilan kiriting.</b>\n` +
             `Masalan: <code>20</code>  (10–80 oralig'ida)`,
             { parse_mode: "HTML", reply_markup: { remove_keyboard: true } }
           );
+          regBotMsg.set(userId, m.message_id);
           return;
         }
         setRegStep(userId, { step: "asking_gender", fullName: regStep.fullName, age });
-        await bot.sendMessage(chatId,
+        await safeDelete(bot, chatId, regBotMsg.get(userId));
+        const m2 = await bot.sendMessage(chatId,
           `✅ <b>Yosh: ${age}</b>\n\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
           `📊 Ro'yxatdan o'tish: <b>3/4</b>\n` +
@@ -764,21 +939,20 @@ export function registerHandlers(bot: TelegramBot): void {
             parse_mode: "HTML",
             reply_markup: {
               remove_keyboard: true,
-              inline_keyboard: [
-                [
-                  { text: "👨 Erkak", callback_data: "reg:gender:Erkak" },
-                  { text: "👩 Ayol",  callback_data: "reg:gender:Ayol"  },
-                ],
-              ],
+              inline_keyboard: [[
+                { text: "👨 Erkak", callback_data: "reg:gender:Erkak" },
+                { text: "👩 Ayol",  callback_data: "reg:gender:Ayol"  },
+              ]],
             },
           }
         );
+        regBotMsg.set(userId, m2.message_id);
         return;
       }
 
       if (regStep.step === "asking_gender") {
-        // Only inline button is accepted for gender — ignore text
-        await bot.sendMessage(chatId,
+        await safeDelete(bot, chatId, regBotMsg.get(userId));
+        const m = await bot.sendMessage(chatId,
           `3️⃣ Iltimos, <b>quyidagi tugmalardan birini tanlang:</b>`,
           {
             parse_mode: "HTML",
@@ -790,11 +964,13 @@ export function registerHandlers(bot: TelegramBot): void {
             },
           }
         );
+        regBotMsg.set(userId, m.message_id);
         return;
       }
 
       if (regStep.step === "asking_phone") {
-        await bot.sendMessage(chatId,
+        await safeDelete(bot, chatId, regBotMsg.get(userId));
+        const m = await bot.sendMessage(chatId,
           `4️⃣ <b>Telefon raqamingizni ulashing:</b>\n\n` +
           `Quyidagi <b>«📞 Telefon raqamimni ulashish»</b> tugmasini bosing:`,
           {
@@ -806,6 +982,7 @@ export function registerHandlers(bot: TelegramBot): void {
             },
           }
         );
+        regBotMsg.set(userId, m.message_id);
         return;
       }
       return;
@@ -832,23 +1009,74 @@ export function registerHandlers(bot: TelegramBot): void {
     const ieltsHandled = await routeIeltsMessage(bot, msg);
     if (ieltsHandled) return;
 
+    // ── Bosh menyu (exit help mode) ───────────────────────────────
+    if (text === BTN_BACK) {
+      clearFlow(chatId);
+      await bot.sendMessage(chatId, `🏠 <b>Bosh menyu</b>`, { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD });
+      return;
+    }
+
+    // ── Help mode: forward any text to admin ──────────────────────
+    const flowTxt = getFlow(chatId);
+    if (flowTxt.state === "help_mode") {
+      const adminId = getAdminChatId();
+      if (adminId) {
+        const name = msg.from?.username ? `@${msg.from.username}` : (msg.from?.first_name ?? "Foydalanuvchi");
+        bot.sendMessage(adminId,
+          `💬 <b>Yordam so'rovi</b>\n👤 ${name} | <code>${chatId}</code>\n\n${text}`,
+          { parse_mode: "HTML" }
+        ).catch(() => {});
+      }
+      await bot.sendMessage(chatId,
+        `✅ <b>Xabaringiz qabul qilindi!</b>\n\n` +
+        `⏳ Operatorimiz tez orada ko'rib chiqadi va javob beradi.\n\n` +
+        `🙏 Biz bilan bo'lganingiz uchun <b>Rahmat!</b> Iltimos kuting... 💬`,
+        { parse_mode: "HTML" }
+      );
+      return;
+    }
+
     // ── Button shortcuts ──────────────────────────────────────────
     if (text === BTN_CERT)  { await handleCertEntry(bot, chatId); return; }
     if (text === BTN_IELTS) { await handleIeltsEntry(bot, chatId); return; }
     if (text === BTN_STATUS)    { await bot.sendMessage(chatId, formatStatus(chatId), { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }); return; }
-    if (text === BTN_SUBSCRIBE) { await bot.sendMessage(chatId, `💳 <b>Haftalik obuna</b>\n\n💰 Narxi: <b>${PRICE_UZS}</b> / til / hafta\n\n👇 Qaysi til?`, { parse_mode: "HTML", reply_markup: langInlineKeyboard() }); return; }
-    if (text === BTN_STATS)     { await bot.sendMessage(chatId, formatStats(chatId), { reply_markup: MAIN_KEYBOARD }); return; }
-    if (text === BTN_HELP)      { await showHelpMessage(bot, chatId); return; }
-    if (text === BTN_REFERRAL)  {
+    if (text === BTN_SUBSCRIBE) {
+      await bot.sendMessage(chatId, `💳 <b>Haftalik obuna</b>\n\n💰 Narxi: <b>${PRICE_UZS}</b> / til / hafta\n\n👇 Qaysi til?`, { parse_mode: "HTML", reply_markup: langInlineKeyboard() });
+      return;
+    }
+    if (text === BTN_STATS) { await bot.sendMessage(chatId, formatStats(chatId), { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }); return; }
+    if (text === BTN_HELP)  { await showHelpMessage(bot, chatId); return; }
+    if (text === BTN_REFERRAL) {
       try {
         const me   = await bot.getMe();
         const link = `https://t.me/${me.username}?start=ref_${chatId}`;
+        const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('🤖 AI til o\'qituvchisi! Ruscha, Inglizcha, Turkcha. 3 ta bepul xabar sovg\'a!')}`;
         await bot.sendMessage(
           chatId,
-          `🔗 <b>Shaxsiy taklif havolangiz:</b>\n\n<code>${link}</code>\n\n🎁 Do'st qo'shilsa: ikkalangizga +3 ta bepul xabar (har tilga)`,
-          { parse_mode: "HTML", reply_markup: MAIN_KEYBOARD }
+          `🔗 <b>Do'stlarni taklif qiling!</b>\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━\n` +
+          `Sizning shaxsiy havolangiz:\n<code>${link}</code>\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━\n` +
+          `🎁 <b>Mukofot:</b> ikkalangizga +3 ta bepul xabar (har tilga)\n\n` +
+          `👇 Yoki quyidagi tugma orqali ulashing:`,
+          {
+            parse_mode: "HTML",
+            reply_markup: {
+              inline_keyboard: [[{ text: "📤 Do'stlarga ulashish", url: shareUrl }]],
+            },
+          }
         );
       } catch { await bot.sendMessage(chatId, "Xatolik. Qaytadan urinib ko'ring."); }
+      return;
+    }
+
+    // ── Block text when waiting for receipt ───────────────────────
+    if (flowTxt.state === "waiting_receipt") {
+      await bot.sendMessage(chatId,
+        `📸 <b>Iltimos, chekni rasm ko'rinishida yoki Document (PDF) tarzida yuboring!</b>\n\n` +
+        `Matn qabul qilinmaydi — faqat rasm yoki PDF fayl yuboring.`,
+        { parse_mode: "HTML" }
+      );
       return;
     }
 

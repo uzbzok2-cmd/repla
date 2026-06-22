@@ -68,6 +68,24 @@ function fmtIeltsQ(q: IeltsQuestion) {
   return { id: q.id, text: q.question_text, type: q.question_type ?? "multiple_choice", options: q.options };
 }
 
+// ── POST /api/exam/start ─────────────────────────────────────────────
+async function handleStartExam(req: Request, res: Response): Promise<void> {
+  const { token } = req.body as { token: string };
+  if (!token) { res.status(400).json({ error: "Token kerak" }); return; }
+
+  const session = getExamSession(token);
+  if (!session) { res.status(404).json({ error: "Sessiya topilmadi yoki muddati o'tgan" }); return; }
+
+  if (session.started) {
+    res.status(410).json({ error: "already_started" });
+    return;
+  }
+
+  updateExamSession(token, { started: true });
+
+  res.json({ ok: true });
+}
+
 // ── GET /api/exam/data ───────────────────────────────────────────────
 async function handleGetExamData(req: Request, res: Response): Promise<void> {
   const token = req.query["token"] as string | undefined;
@@ -75,6 +93,11 @@ async function handleGetExamData(req: Request, res: Response): Promise<void> {
 
   const session = getExamSession(token);
   if (!session) { res.status(404).json({ error: "Sessiya topilmadi yoki muddati o'tgan" }); return; }
+
+  if (session.started) {
+    res.status(410).json({ error: "already_started" });
+    return;
+  }
 
   try {
     if (session.examType === "cert") {
@@ -422,6 +445,7 @@ function makeFallbackIeltsSpeaking(): IeltsSpeakingFeedback {
 // ── Register routes ──────────────────────────────────────────────────
 export function setupExamRoutes(app: Express): void {
   app.get("/exam", (_req, res) => { res.sendFile("exam.html", { root: "public" }); });
+  app.post("/api/exam/start", handleStartExam);
   app.get("/api/exam/data", handleGetExamData);
   app.post("/api/exam/submit", handleSubmitExam);
 }

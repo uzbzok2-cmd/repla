@@ -190,18 +190,25 @@ export function formatStats(userId: number): string {
     mode === "turkish" ? "Turkcha" :
     "tanlanmagan";
 
-  return `Sizning statistikangiz
-
-Joriy rejim: ${modeLabel}
-Ovozli xabarlar: ${s.voiceMessages}
-Matnli xabarlar: ${s.textMessages}
-Jami xabarlar: ${s.totalMessages}
-Tuzatishlar: ${s.correctionsGiven}
-Ruscha mashqlar: ${s.russianMessages}
-Inglizcha mashqlar: ${s.englishMessages}
-Turkcha mashqlar: ${s.turkishMessages}
-Boshlangan: ${dayLabel}
-Oxirgi faollik: ${s.lastActiveAt.toLocaleTimeString("uz-UZ")}
-
-${s.correctionsGiven === 0 ? "Hali xato yo'q — ajoyib!" : `${s.correctionsGiven} ta xatoni tuzatdingiz — davom eting!`}`;
+  return (
+    `╔══════════════════════╗\n` +
+    `   📈 STATISTIKANGIZ\n` +
+    `╚══════════════════════╝\n\n` +
+    `🎯 Joriy rejim: <b>${modeLabel}</b>\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `🎤 Ovozli xabarlar: <b>${s.voiceMessages}</b>\n` +
+    `✍️ Matnli xabarlar: <b>${s.textMessages}</b>\n` +
+    `💬 Jami xabarlar: <b>${s.totalMessages}</b>\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `🇷🇺 Ruscha mashqlar: <b>${s.russianMessages}</b>\n` +
+    `🇬🇧 Inglizcha mashqlar: <b>${s.englishMessages}</b>\n` +
+    `🇹🇷 Turkcha mashqlar: <b>${s.turkishMessages}</b>\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `✅ Tuzatishlar: <b>${s.correctionsGiven}</b>\n` +
+    `📅 Boshlangan: <b>${dayLabel}</b>\n` +
+    `⏰ Oxirgi faollik: <b>${s.lastActiveAt.toLocaleTimeString("uz-UZ")}</b>\n\n` +
+    (s.correctionsGiven === 0
+      ? `🌟 <i>Hali xato yo'q — ajoyib natija!</i>`
+      : `💪 <i>${s.correctionsGiven} ta xatoni tuzatdingiz — davom eting!</i>`)
+  );
 }

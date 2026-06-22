@@ -49,7 +49,7 @@ function mainKb(): ReplyKeyboardMarkup {
     keyboard: [
       [{ text: "🇷🇺 Ruscha" }, { text: "🇬🇧 Inglizcha" }, { text: "🇹🇷 Turkcha" }],
       [{ text: "📊 Obuna holati" }, { text: "💳 Obuna olish" }],
-      [{ text: "📝 IELTS Mock Exam" }],
+      [{ text: "📝 IELTS Mock Exam" }, { text: "🎓 Rus tili sertifikati" }],
       [{ text: "🔗 Do'st taklif" }, { text: "📈 Statistika" }],
       [{ text: "ℹ️ Yordam" }],
     ],

@@ -29,7 +29,7 @@ export interface UserRecord {
   lastSeen: Date;
 }
 
-export type PaymentState = "idle" | "selecting_language" | "waiting_receipt";
+export type PaymentState = "idle" | "selecting_language" | "waiting_receipt" | "help_mode";
 
 export interface PaymentFlow {
   state: PaymentState;
@@ -190,7 +190,6 @@ export function formatStatus(userId: number): string {
       );
     }
   }
-  lines.push("\n💳 Obuna: /subscribe\n🔗 Taklif: /referral");
   return lines.join("\n\n");
 }
 
