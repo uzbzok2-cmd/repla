@@ -17,7 +17,7 @@ import {
 import { evaluateWriting, evaluateSpeaking, transcribeForSpeaking } from "./evaluator.js";
 import { rawToListeningBand, rawToReadingBand, calcOverall, bandEmoji, bandDescription, roundToBand } from "./scoring.js";
 import { getAdminChatId } from "../subscription.js";
-import { createExamToken, getWebAppUrl } from "../webapp.js";
+import { createExamToken, getWebAppUrl, updateExamSession } from "../webapp.js";
 import type { IeltsSection } from "./types.js";
 import { transcribeAudio } from "../ai.js";
 
@@ -87,7 +87,7 @@ export async function handleIeltsEntry(bot: TelegramBot, chatId: number): Promis
   if (existing && existing.status === "paid") {
     const token = createExamToken({ userId: chatId, examType: "ielts", userExamId: existing.id, examId: existing.exam_id });
     const webAppUrl = getWebAppUrl(token);
-    await bot.sendMessage(chatId,
+    const sent = await bot.sendMessage(chatId,
       `✅ <b>To'lovingiz allaqachon tasdiqlangan!</b>\n\nImtihonni boshlash uchun quyidagi tugmani bosing:`,
       {
         parse_mode: "HTML",
@@ -98,6 +98,7 @@ export async function handleIeltsEntry(bot: TelegramBot, chatId: number): Promis
         },
       }
     );
+    updateExamSession(token, { notificationMsgId: sent.message_id });
     return;
   }
   // Exam was started (timer ran) but not submitted — considered used
@@ -908,7 +909,7 @@ export async function registerIeltsHandlers(bot: TelegramBot): Promise<void> {
       await bot.sendMessage(adminChatId, `✅ <b>IELTS to'lov tasdiqlandi!</b>\n👤 ID: <code>${userId}</code>`, { parse_mode: "HTML" });
       const token = createExamToken({ userId, examType: "ielts", userExamId: ue.id, examId: ue.exam_id });
       const webAppUrl = getWebAppUrl(token);
-      await bot.sendMessage(userId,
+      const sent1 = await bot.sendMessage(userId,
         `╔══════════════════════════════╗\n` +
         `   ✅ IELTS IMTIHON TAYYOR!\n` +
         `╚══════════════════════════════╝\n\n` +
@@ -922,6 +923,7 @@ export async function registerIeltsHandlers(bot: TelegramBot): Promise<void> {
         `Boshlashga tayyor bo'lsangiz, quyidagi tugmani bosing:`,
         { parse_mode: "HTML", reply_markup: { inline_keyboard: [[{ text: "🚀 IELTS imtihonini boshlash", web_app: { url: webAppUrl } }]] } }
       );
+      updateExamSession(token, { notificationMsgId: sent1.message_id });
     } else if (data.startsWith("ielts_cb_reject:")) {
       const userId = parseInt(data.split(":")[1]!, 10);
       const ue = await getUserExam(userId);
@@ -950,7 +952,7 @@ export async function registerIeltsHandlers(bot: TelegramBot): Promise<void> {
     const token = createExamToken({ userId, examType: "ielts", userExamId: ue.id, examId: ue.exam_id });
     const webAppUrl = getWebAppUrl(token);
 
-    await bot.sendMessage(userId,
+    const sent2 = await bot.sendMessage(userId,
       `╔══════════════════════════════╗\n` +
       `   ✅ IELTS IMTIHON TAYYOR!\n` +
       `╚══════════════════════════════╝\n\n` +
@@ -971,6 +973,7 @@ export async function registerIeltsHandlers(bot: TelegramBot): Promise<void> {
         },
       }
     );
+    updateExamSession(token, { notificationMsgId: sent2.message_id });
   });
 
   // Reject payment (command fallback)
