@@ -8,7 +8,7 @@ import {
   getSpeakingQuestions as getCertSpeakingQs,
   saveCertAnswer, countCertCorrect, countCertTotal,
   saveCertWriting, saveCertSpeaking,
-  saveCertScores, updateCertStatus,
+  saveCertScores, updateCertStatus, getCertUserExamById,
   pool as certPool,
 } from "./cert/db.js";
 import {
@@ -16,7 +16,7 @@ import {
   getWritingTasks, getSpeakingQuestions as getIeltsSpeakingQs,
   saveAnswer,
   saveWritingSubmission, saveSpeakingSubmission,
-  saveScores, updateUserExamStatus,
+  saveScores, updateUserExamStatus, getUserExamById,
 } from "./ielts/db.js";
 import { evaluateRussianWriting, evaluateRussianSpeaking } from "./cert/evaluator.js";
 import { evaluateWriting, evaluateSpeaking } from "./ielts/evaluator.js";
@@ -87,7 +87,7 @@ async function handleStartExam(req: Request, res: Response): Promise<void> {
 }
 
 // ── POST /api/exam/timer-start ───────────────────────────────────────
-// Called when the Web App timer actually starts — locks the exam in DB
+// Called when the Web App timer actually starts — locks the exam in DB and removes bot button
 async function handleTimerStart(req: Request, res: Response): Promise<void> {
   const { token } = req.body as { token: string };
   if (!token) { res.status(400).json({ error: "Token kerak" }); return; }
@@ -101,6 +101,19 @@ async function handleTimerStart(req: Request, res: Response): Promise<void> {
     } else {
       await updateCertStatus(session.userExamId, "in_progress");
     }
+
+    // Delete the bot notification message that contained the exam button
+    if (session.notificationMsgId) {
+      const bot = getBotForExam();
+      if (bot) {
+        try {
+          await bot.deleteMessage(session.userId, session.notificationMsgId);
+        } catch {
+          // Message may already be deleted — ignore
+        }
+      }
+    }
+
     res.json({ ok: true });
   } catch (err) {
     console.error("timer-start error:", err);
@@ -119,6 +132,25 @@ async function handleGetExamData(req: Request, res: Response): Promise<void> {
   if (session.started) {
     res.status(410).json({ error: "already_started" });
     return;
+  }
+
+  // Check DB status — block if exam is already used (in_progress, completed, failed)
+  try {
+    const lockedStatuses = ["in_progress", "completed", "failed"];
+    let dbStatus: string | undefined;
+    if (session.examType === "ielts") {
+      const ue = await getUserExamById(session.userExamId);
+      dbStatus = ue?.status;
+    } else {
+      const ue = await getCertUserExamById(session.userExamId);
+      dbStatus = ue?.status;
+    }
+    if (dbStatus && lockedStatuses.includes(dbStatus)) {
+      res.status(401).json({ error: "locked", message: "Siz bu imtihondan foydalana olmaysiz" });
+      return;
+    }
+  } catch {
+    // If status check fails, allow through (fail-open so real errors don't block valid users)
   }
 
   try {
