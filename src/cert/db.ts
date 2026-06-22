@@ -176,6 +176,14 @@ export async function getPendingCertPayments(): Promise<CertUserExam[]> {
   return r.rows;
 }
 
+export async function getAnyPendingCertExam(userId: number): Promise<CertUserExam | null> {
+  const r = await pool.query<CertUserExam>(
+    "SELECT * FROM cert_user_exams WHERE user_id = $1 AND status = 'pending_payment' ORDER BY created_at DESC LIMIT 1",
+    [userId]
+  );
+  return r.rows[0] ?? null;
+}
+
 export async function getAllCertUserExams(): Promise<{ user_id: number; level: string; status: string; created_at: Date }[]> {
   const r = await pool.query(
     "SELECT user_id, level, status, created_at FROM cert_user_exams ORDER BY created_at DESC LIMIT 100"

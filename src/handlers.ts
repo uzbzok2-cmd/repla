@@ -21,6 +21,8 @@ import {
   handleMyResults, routeCertMessage, registerCertHandlers,
 } from "./cert/handlers.js";
 import { getCertPaymentPending } from "./cert/state.js";
+import { getAnyPendingCertExam } from "./cert/db.js";
+import { getUserExam } from "./ielts/db.js";
 import { transcribeAudio, getTutorReply, textToSpeech } from "./ai.js";
 import {
   getSession,
@@ -606,18 +608,20 @@ export function registerHandlers(bot: TelegramBot): void {
       return;
     }
 
-    // Route to cert payment if user is in cert payment pending state
+    // Route to cert payment if user is in cert payment pending state (memory or DB fallback)
     const certPending = getCertPaymentPending(chatId);
-    if (certPending) {
+    const certDbPending = certPending ? null : await getAnyPendingCertExam(chatId);
+    if (certPending || certDbPending) {
       const photos = msg.photo!;
       const photoFileId = photos[photos.length - 1].file_id;
       await handleCertPaymentPhoto(bot, msg, photoFileId);
       return;
     }
 
-    // Route to IELTS payment if user is in IELTS payment pending state
+    // Route to IELTS payment if user is in IELTS payment pending state (memory or DB fallback)
     const ieltsPending = getIeltsPaymentPending(chatId);
-    if (ieltsPending) {
+    const ieltsDbPending = ieltsPending ? null : await getUserExam(chatId);
+    if (ieltsPending || ieltsDbPending?.status === "pending_payment") {
       const photos = msg.photo!;
       const photoFileId = photos[photos.length - 1].file_id;
       await handleIeltsPaymentPhoto(bot, msg, photoFileId);
@@ -711,14 +715,16 @@ export function registerHandlers(bot: TelegramBot): void {
       return;
     }
 
-    // Route cert/ielts pending payments
+    // Route cert/ielts pending payments (memory + DB fallback)
     const certPending = getCertPaymentPending(chatId);
-    if (certPending) {
+    const certDbPending = certPending ? null : await getAnyPendingCertExam(chatId);
+    if (certPending || certDbPending) {
       await handleCertPaymentPhoto(bot, msg, fileId);
       return;
     }
     const ieltsPending = getIeltsPaymentPending(chatId);
-    if (ieltsPending) {
+    const ieltsDbPending = ieltsPending ? null : await getUserExam(chatId);
+    if (ieltsPending || ieltsDbPending?.status === "pending_payment") {
       await handleIeltsPaymentPhoto(bot, msg, fileId);
       return;
     }

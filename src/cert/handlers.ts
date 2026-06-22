@@ -3,6 +3,7 @@ import { createExamToken, getWebAppUrl } from "../webapp.js";
 import {
   createCertUserExam, getLatestCertUserExam, getCertUserExamById,
   updateCertStatus, setCertPaymentPhoto, getPendingCertPayments,
+  getAnyPendingCertExam,
   assignPassages, getAssignedPassages, getQuestionsForPassage,
   assignGrammarQuestions, getAssignedGrammarQuestions,
   assignListeningTexts, getAssignedListeningTexts,
@@ -250,10 +251,19 @@ export async function handleCertPaymentPhoto(bot: TelegramBot, msg: Message, pho
   const firstName = msg.from?.first_name ?? "User";
   const username  = msg.from?.username;
   const pending   = getCertPaymentPending(chatId);
-  if (!pending) return;
 
-  const level = pending.level as CertLevel;
-  let ue = await getLatestCertUserExam(chatId, level);
+  let level: CertLevel;
+  let ue;
+
+  if (pending) {
+    level = pending.level as CertLevel;
+    ue = await getLatestCertUserExam(chatId, level);
+  } else {
+    const dbPending = await getAnyPendingCertExam(chatId);
+    if (!dbPending) return;
+    level = dbPending.level as CertLevel;
+    ue = dbPending;
+  }
   if (!ue) return;
 
   await setCertPaymentPhoto(ue.id, photoFileId);
