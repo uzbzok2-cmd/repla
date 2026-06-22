@@ -150,52 +150,34 @@ async function googleTranslateTTS(
   return Buffer.concat(audioParts);
 }
 
-function extractEnglishPart(text: string): string {
-  const lines = text.split("\n");
+function extractBeforeSeparator(text: string): string {
+  const beforeSep = (text.split(/^---$/m)[0] ?? text).trim();
+  const lines = beforeSep.split("\n");
   const result: string[] = [];
   for (const line of lines) {
-    const hasRussian = /[\u0400-\u04FF]/.test(line);
-    if (!hasRussian && line.trim().length > 3) {
-      const cleaned = line.replace(/[❌✅→\-•]/g, "").replace(/\s+/g, " ").trim();
-      if (cleaned.length > 3) result.push(cleaned);
-    }
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (/[❌✅]/.test(trimmed)) continue;
+    result.push(trimmed);
   }
-  return result.length > 0 ? result.join(". ") : text.replace(/[❌✅→]/g, "").trim();
+  return result.join(" ").trim() || beforeSep.replace(/[❌✅→]/g, "").trim();
+}
+
+function extractEnglishPart(text: string): string {
+  const base = extractBeforeSeparator(text);
+  return base || (text.split("---")[0]?.replace(/[❌✅→]/g, "").trim() ?? text);
 }
 
 function extractRussianPart(text: string): string {
-  const lines = text.split("\n");
-  const result: string[] = [];
-  for (const line of lines) {
-    if (line.trim() === "---") break;
-    if (/[\u0400-\u04FF]/.test(line)) {
-      const isUzbek = /\b(bu|va|ham|uchun|bilan|men|siz|biz|ular|nima|qanday|qaysi)\b/i.test(line);
-      if (!isUzbek) {
-        const cleaned = line.replace(/[❌✅→]/g, "").replace(/\s+/g, " ").trim();
-        if (cleaned.length > 0) result.push(cleaned);
-      }
-    }
-  }
-  return result.length > 0 ? result.join(". ") : text.split("---")[0]?.replace(/[❌✅→]/g, "").trim() ?? text;
+  const base = extractBeforeSeparator(text);
+  return base || (text.split("---")[0]?.replace(/[❌✅→]/g, "").trim() ?? text);
 }
 
 function extractTurkishPart(text: string): string {
-  const lines = text.split("\n");
-  const result: string[] = [];
-  let beforeSeparator = true;
-  for (const line of lines) {
-    if (line.trim() === "---") { beforeSeparator = false; continue; }
-    if (beforeSeparator && line.trim().length > 3) {
-      const hasRussian = /[\u0400-\u04FF]/.test(line);
-      const isUzbek = /[o'g']/i.test(line) && /\b(bu|va|ham|uchun|bilan|men|siz)\b/i.test(line);
-      if (!hasRussian && !isUzbek) {
-        const cleaned = line.replace(/[❌✅→\-•]/g, "").replace(/\s+/g, " ").trim();
-        if (cleaned.length > 3) result.push(cleaned);
-      }
-    }
-  }
-  return result.length > 0 ? result.join(". ") : text.replace(/[❌✅→]/g, "").trim();
+  const base = extractBeforeSeparator(text);
+  return base || (text.split("---")[0]?.replace(/[❌✅→]/g, "").trim() ?? text);
 }
+
 
 function splitIntoChunks(text: string, maxLength: number): string[] {
   if (text.length <= maxLength) return [text];

@@ -36,6 +36,8 @@ import {
   recordCorrection,
   resetStats,
   formatStats,
+  getPersonality,
+  togglePersonality,
   type LearningMode,
 } from "./sessions.js";
 import {
@@ -81,6 +83,8 @@ const BTN_STATS     = "📈 Statistika";
 const BTN_HELP      = "ℹ️ Yordam";
 const BTN_BACK      = "🔙 Bosh menyu";
 const BTN_INFO      = "📊 Info";
+const BTN_PERSONALITY_NORMAL    = "😊 Mehribon rejim";
+const BTN_PERSONALITY_SARCASTIC = "😏 Kinoyali rejim";
 
 // ── Message ID tracking for deletion ─────────────────────────────────
 const regBotMsg     = new Map<number, number>(); // chatId -> last reg bot msg ID
@@ -120,7 +124,23 @@ const ADMIN_KEYBOARD: ReplyKeyboardMarkup = {
 };
 
 function mkb(chatId: number): ReplyKeyboardMarkup {
-  return getAdminChatId() === chatId ? ADMIN_KEYBOARD : MAIN_KEYBOARD;
+  const personalityBtn = getPersonality(chatId) === "sarcastic"
+    ? { text: BTN_PERSONALITY_NORMAL }
+    : { text: BTN_PERSONALITY_SARCASTIC };
+  const isAdmin = getAdminChatId() === chatId;
+  return {
+    keyboard: [
+      [{ text: BTN_RUSSIAN }, { text: BTN_ENGLISH }, { text: BTN_TURKISH }],
+      [{ text: BTN_STATUS }, { text: BTN_SUBSCRIBE }],
+      [{ text: BTN_IELTS }, { text: BTN_CERT }],
+      [{ text: BTN_REFERRAL }, { text: BTN_STATS }],
+      isAdmin
+        ? [{ text: BTN_HELP }, { text: BTN_INFO }, personalityBtn]
+        : [{ text: BTN_HELP }, personalityBtn],
+    ],
+    resize_keyboard: true,
+    one_time_keyboard: false,
+  };
 }
 
 function langInlineKeyboard(): InlineKeyboardMarkup {
@@ -1169,6 +1189,28 @@ export function registerHandlers(bot: TelegramBot): void {
     }
     if (text === BTN_STATS) { await bot.sendMessage(chatId, formatStats(chatId), { parse_mode: "HTML", reply_markup: mkb(chatId) }); return; }
     if (text === BTN_HELP)  { await showHelpMessage(bot, chatId); return; }
+    if (text === BTN_PERSONALITY_SARCASTIC || text === BTN_PERSONALITY_NORMAL) {
+      const newMode = togglePersonality(chatId);
+      const isSarcastic = newMode === "sarcastic";
+      await bot.sendMessage(
+        chatId,
+        isSarcastic
+          ? `😏 <b>Kinoyali ustoz rejimi yoqildi!</b>\n\n` +
+            `━━━━━━━━━━━━━━━━━━━━\n` +
+            `Endi sizning ustozingiz qattiqroq, kinoyali va hazilkash bo'ladi.\n` +
+            `Xatolaringizni qattiq tuzatadi — lekin o'qitadi!\n\n` +
+            `😤 Gordon Ramsay uslubida til o'rganing!\n` +
+            `━━━━━━━━━━━━━━━━━━━━\n` +
+            `Qaytish uchun: <b>😊 Mehribon rejim</b>`
+          : `😊 <b>Mehribon rejim yoqildi!</b>\n\n` +
+            `━━━━━━━━━━━━━━━━━━━━\n` +
+            `Endi sizning ustozingiz yana iliq, do'stona va qo'llab-quvvatlovchi.\n\n` +
+            `🤗 Xush kelibsiz!\n` +
+            `━━━━━━━━━━━━━━━━━━━━`,
+        { parse_mode: "HTML", reply_markup: mkb(chatId) }
+      );
+      return;
+    }
     if (text === BTN_REFERRAL) {
       try {
         const me   = await bot.getMe();
