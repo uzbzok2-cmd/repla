@@ -864,7 +864,9 @@ export async function handleIeltsPaymentPhoto(bot: TelegramBot, msg: Message, ph
   );
 
   const adminId = getAdminChatId();
-  if (adminId) {
+  if (!adminId) {
+    console.warn(`[ADMIN ALERT] adminChatId is null! IELTS payment receipt from userId=${chatId} (${username ?? firstName}) NOT forwarded. Admin must send /start to the bot to register.`);
+  } else {
     const name    = username ? `@${username}` : firstName;
     const caption =
       `💳 <b>YANGI IELTS TO'LOV SO'ROVI!</b>\n\n` +

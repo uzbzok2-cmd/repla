@@ -656,7 +656,9 @@ export function registerHandlers(bot: TelegramBot): void {
 
     // Forward receipt photo to admin with inline buttons
     const adminId = getAdminChatId();
-    if (adminId) {
+    if (!adminId) {
+      console.warn(`[ADMIN ALERT] adminChatId is null! Payment receipt from userId=${chatId} (${payment.username ?? payment.firstName}) lang=${flow.language} NOT forwarded. Admin must send /start to the bot to register.`);
+    } else {
       const name    = payment.username ? `@${payment.username}` : payment.firstName;
       const caption =
         `💳 <b>YANGI TO'LOV SO'ROVI!</b>\n\n` +
@@ -747,7 +749,9 @@ export function registerHandlers(bot: TelegramBot): void {
     );
 
     const adminId = getAdminChatId();
-    if (adminId) {
+    if (!adminId) {
+      console.warn(`[ADMIN ALERT] adminChatId is null! PDF receipt from userId=${chatId} lang=${flow.language} NOT forwarded. Admin must send /start to the bot to register.`);
+    } else {
       const name    = payment.username ? `@${payment.username}` : payment.firstName;
       const caption =
         `💳 <b>YANGI TO'LOV SO'ROVI (PDF)!</b>\n\n` +
