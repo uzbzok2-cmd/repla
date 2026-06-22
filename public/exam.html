@@ -8,192 +8,298 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
-  --bg:var(--tg-theme-bg-color,#ffffff);
-  --bg2:var(--tg-theme-secondary-bg-color,#f0f2f5);
-  --text:var(--tg-theme-text-color,#1a1a1a);
-  --hint:var(--tg-theme-hint-color,#8a8a8a);
-  --accent:var(--tg-theme-button-color,#2AABEE);
-  --accent-t:var(--tg-theme-button-text-color,#ffffff);
-  --link:var(--tg-theme-link-color,#2AABEE);
-  --danger:#e74c3c;
-  --warn:#f39c12;
-  --success:#27ae60;
-  --border:rgba(0,0,0,0.08);
-  --shadow:0 2px 12px rgba(0,0,0,0.08);
+  --bg:#1c1c1e;
+  --bg2:#2c2c2e;
+  --bg3:#3a3a3c;
+  --text:#ffffff;
+  --hint:#aeaeb2;
+  --accent:#2196F3;
+  --accent2:#1976D2;
+  --accent-t:#ffffff;
+  --link:#64B5F6;
+  --danger:#FF453A;
+  --warn:#FF9F0A;
+  --success:#30D158;
+  --border:rgba(255,255,255,0.1);
+  --shadow:0 4px 20px rgba(0,0,0,0.3);
+  --card-bg:#2c2c2e;
 }
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
-#loading-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:16px;background:var(--bg)}
-.spinner{width:48px;height:48px;border:4px solid var(--bg2);border-top:4px solid var(--accent);border-radius:50%;animation:spin 0.8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.loading-text{color:var(--hint);font-size:14px}
+html,body{height:100%;background:var(--bg);color:var(--text)}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;min-height:100vh;overflow-x:hidden}
 
-/* HEADER */
-#header{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--bg);border-bottom:1px solid var(--border);padding:0 16px}
+/* ════ LOADING ════ */
+#loading-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:16px;background:var(--bg)}
+.spinner{width:44px;height:44px;border:3px solid var(--bg3);border-top:3px solid var(--accent);border-radius:50%;animation:spin 0.75s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{color:var(--hint);font-size:14px;font-weight:500}
+
+/* ════ OVERVIEW SCREEN ════ */
+#overview-screen{display:none;min-height:100vh;overflow-y:auto;padding-bottom:100px}
+.ov-hero{background:linear-gradient(160deg,#1565C0 0%,#1976D2 40%,#2196F3 100%);padding:36px 20px 32px;text-align:center;position:relative;overflow:hidden}
+.ov-hero::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;background:rgba(255,255,255,0.06);border-radius:50%}
+.ov-hero::after{content:'';position:absolute;bottom:-30px;left:-30px;width:120px;height:120px;background:rgba(255,255,255,0.04);border-radius:50%}
+.ov-emoji{font-size:64px;margin-bottom:12px;filter:drop-shadow(0 4px 12px rgba(0,0,0,0.3))}
+.ov-title{font-size:26px;font-weight:800;color:#fff;margin-bottom:6px;letter-spacing:-0.3px}
+.ov-sub{font-size:14px;color:rgba(255,255,255,0.8);font-weight:500}
+.ov-badge{display:inline-flex;align-items:center;gap:6px;margin-top:14px;background:rgba(255,255,255,0.15);border-radius:20px;padding:6px 16px;font-size:13px;color:#fff;font-weight:600;backdrop-filter:blur(8px)}
+
+.ov-body{padding:20px 16px 8px}
+.ov-section-title{font-size:13px;font-weight:700;color:var(--hint);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;padding-left:4px}
+
+.ov-section-list{display:flex;flex-direction:column;gap:10px;margin-bottom:24px}
+.ov-section-card{background:var(--card-bg);border-radius:16px;padding:16px;display:flex;align-items:center;gap:14px;border:1px solid var(--border)}
+.ov-section-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.ov-section-info{flex:1}
+.ov-section-name{font-size:15px;font-weight:700;color:var(--text);margin-bottom:2px}
+.ov-section-meta{font-size:12px;color:var(--hint);display:flex;align-items:center;gap:6px}
+.ov-section-dot{width:3px;height:3px;border-radius:50%;background:var(--hint)}
+.ov-section-time{font-size:13px;font-weight:700;color:var(--accent);background:rgba(33,150,243,0.12);padding:4px 10px;border-radius:8px;flex-shrink:0}
+
+.ov-rules{background:var(--card-bg);border-radius:16px;padding:18px;border:1px solid var(--border);margin-bottom:24px}
+.ov-rules-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.ov-rule{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px}
+.ov-rule:last-child{margin-bottom:0}
+.ov-rule-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+.ov-rule-text{font-size:13px;color:var(--hint);line-height:1.5}
+.ov-rule-text b{color:var(--text)}
+
+/* ════ START BTN FOOTER ════ */
+#ov-footer{position:fixed;bottom:0;left:0;right:0;padding:14px 16px calc(14px + env(safe-area-inset-bottom));background:linear-gradient(to top,var(--bg) 70%,transparent);backdrop-filter:blur(4px)}
+#btn-start-exam{width:100%;padding:17px;border:none;border-radius:16px;background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%);color:#fff;font-size:17px;font-weight:800;cursor:pointer;letter-spacing:0.2px;box-shadow:0 4px 20px rgba(33,150,243,0.4);transition:transform 0.15s,box-shadow 0.15s;display:flex;align-items:center;justify-content:center;gap:10px}
+#btn-start-exam:active{transform:scale(0.97);box-shadow:0 2px 12px rgba(33,150,243,0.3)}
+#btn-start-exam .btn-play{font-size:20px}
+
+/* ════ MAIN EXAM UI ════ */
+#header{display:none;position:fixed;top:0;left:0;right:0;z-index:100;background:var(--bg);border-bottom:1px solid var(--border);padding:0 16px}
 #section-steps{display:flex;gap:6px;padding:12px 0 8px;overflow-x:auto;-ms-overflow-style:none;scrollbar-width:none}
 #section-steps::-webkit-scrollbar{display:none}
-.step-dot{flex-shrink:0;width:32px;height:6px;border-radius:3px;background:var(--bg2);transition:all 0.3s}
+.step-dot{flex-shrink:0;width:32px;height:6px;border-radius:3px;background:var(--bg3);transition:all 0.3s}
 .step-dot.active{background:var(--accent);width:48px}
 .step-dot.done{background:var(--success)}
 #header-main{display:flex;align-items:center;justify-content:space-between;padding-bottom:12px}
-#section-label{display:flex;align-items:center;gap:8px}
+#section-label{display:flex;align-items:center;gap:10px}
 #section-emoji{font-size:22px}
 #section-name{font-weight:700;font-size:15px;color:var(--text)}
 #section-sub{font-size:11px;color:var(--hint)}
-#timer-box{display:flex;align-items:center;gap:4px;background:var(--bg2);border-radius:20px;padding:6px 12px}
+#timer-box{display:flex;align-items:center;gap:5px;background:var(--bg2);border-radius:20px;padding:7px 13px;border:1px solid var(--border)}
 #timer-icon{font-size:14px}
-#timer-val{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;min-width:40px;text-align:right}
+#timer-val{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;min-width:44px;text-align:right;color:var(--text)}
+#progress-wrap{height:3px;background:var(--bg3)}
+#progress-bar{height:3px;background:linear-gradient(90deg,var(--accent),#64B5F6);transition:width 0.4s;width:0%}
 
-/* PROGRESS BAR */
-#progress-wrap{height:3px;background:var(--bg2)}
-#progress-bar{height:3px;background:var(--accent);transition:width 0.4s;width:0%}
-
-/* MAIN CONTENT */
-#main{padding-top:calc(var(--header-h, 100px) + 4px);padding-bottom:80px;min-height:100vh}
-.passage-card{background:var(--bg2);border-radius:16px;margin:12px 16px;padding:16px;line-height:1.65;font-size:14px;color:var(--text);border:1px solid var(--border)}
+/* ════ MAIN CONTENT ════ */
+#main{display:none;padding-top:calc(var(--header-h,106px) + 4px);padding-bottom:84px;min-height:100vh}
+.passage-card{background:var(--bg2);border-radius:16px;margin:12px 16px;padding:18px;line-height:1.7;font-size:14px;color:var(--text);border:1px solid var(--border)}
 .passage-title{font-weight:700;font-size:15px;margin-bottom:10px;color:var(--accent)}
-.passage-text{white-space:pre-wrap;word-break:break-word}
+.passage-text{white-space:pre-wrap;word-break:break-word;color:rgba(255,255,255,0.85)}
 .questions-block{padding:8px 16px}
-.q-card{background:var(--bg);border:1px solid var(--border);border-radius:16px;margin-bottom:12px;overflow:hidden;box-shadow:var(--shadow)}
+.q-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;margin-bottom:12px;overflow:hidden;box-shadow:var(--shadow)}
 .q-head{padding:14px 16px 10px;border-bottom:1px solid var(--border)}
-.q-num{display:inline-block;background:var(--accent);color:var(--accent-t);font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-bottom:6px}
+.q-num{display:inline-block;background:var(--accent);color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px;margin-bottom:6px}
 .q-text{font-size:14px;line-height:1.55;color:var(--text)}
-.options-list{padding:8px 0}
-.option{display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;transition:background 0.15s;user-select:none;border-bottom:1px solid var(--border)}
+.options-list{padding:6px 0}
+.option{display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;transition:background 0.15s;user-select:none;border-bottom:1px solid var(--border)}
 .option:last-child{border-bottom:none}
-.option:active{background:var(--bg2)}
-.opt-badge{flex-shrink:0;width:32px;height:32px;border-radius:50%;background:var(--bg2);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:var(--hint);transition:all 0.2s}
-.opt-text{flex:1;font-size:14px;line-height:1.4;color:var(--text)}
+.option:active{background:rgba(255,255,255,0.04)}
+.opt-badge{flex-shrink:0;width:34px;height:34px;border-radius:50%;background:var(--bg3);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:var(--hint);transition:all 0.2s}
+.opt-text{flex:1;font-size:14px;line-height:1.4;color:rgba(255,255,255,0.85)}
 .opt-check{flex-shrink:0;font-size:18px;opacity:0;transition:opacity 0.2s}
-.option.selected{background:rgba(var(--accent-rgb,42,171,238),0.08)}
-.option.selected .opt-badge{background:var(--accent);border-color:var(--accent);color:var(--accent-t)}
+.option.selected{background:rgba(33,150,243,0.12)}
+.option.selected .opt-badge{background:var(--accent);border-color:var(--accent);color:#fff}
 .option.selected .opt-text{color:var(--accent);font-weight:600}
 .option.selected .opt-check{opacity:1}
-
-/* FILL BLANK question */
-.fill-input{width:100%;border:2px solid var(--border);border-radius:10px;padding:10px 14px;font-size:14px;background:var(--bg);color:var(--text);outline:none;transition:border-color 0.2s;margin-top:4px}
+.fill-input{width:100%;border:2px solid var(--border);border-radius:10px;padding:11px 14px;font-size:14px;background:var(--bg3);color:var(--text);outline:none;transition:border-color 0.2s;margin-top:6px}
 .fill-input:focus{border-color:var(--accent)}
 
-/* WRITING */
+/* ════ WRITING ════ */
 .writing-section{padding:12px 16px}
-.writing-prompt-card{background:linear-gradient(135deg,var(--accent) 0%,#1a8ab5 100%);border-radius:16px;padding:20px;margin-bottom:14px;color:white}
+.writing-prompt-card{background:linear-gradient(135deg,#1565C0 0%,#2196F3 100%);border-radius:16px;padding:20px;margin-bottom:14px;color:white;box-shadow:0 4px 16px rgba(33,150,243,0.3)}
 .writing-prompt-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;opacity:0.85;margin-bottom:8px}
 .writing-prompt-text{font-size:14px;line-height:1.65}
 .writing-task-num{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;opacity:0.85;margin-bottom:6px}
-.writing-textarea{width:100%;min-height:200px;border:2px solid var(--border);border-radius:14px;padding:14px;font-size:14px;line-height:1.6;background:var(--bg);color:var(--text);resize:vertical;outline:none;transition:border-color 0.2s;font-family:inherit}
+.writing-textarea{width:100%;min-height:200px;border:2px solid var(--border);border-radius:14px;padding:14px;font-size:14px;line-height:1.6;background:var(--bg2);color:var(--text);resize:vertical;outline:none;transition:border-color 0.2s;font-family:inherit}
 .writing-textarea:focus{border-color:var(--accent)}
 .word-count{text-align:right;font-size:12px;color:var(--hint);margin-top:6px}
 .word-count.ok{color:var(--success)}
 .word-count.warn{color:var(--warn)}
 
-/* SPEAKING */
+/* ════ SPEAKING ════ */
 .speaking-section{padding:12px 16px}
-.speaking-intro{background:var(--bg2);border-radius:14px;padding:16px;margin-bottom:16px;text-align:center}
+.speaking-intro{background:var(--bg2);border-radius:14px;padding:18px;margin-bottom:16px;text-align:center;border:1px solid var(--border)}
 .speaking-intro-icon{font-size:40px;margin-bottom:8px}
 .speaking-intro-text{font-size:13px;color:var(--hint);line-height:1.5}
-.speaking-q-card{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
+.speaking-q-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
 .speaking-q-label{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
-.speaking-q-text{font-size:14px;line-height:1.55;margin-bottom:10px}
+.speaking-q-text{font-size:14px;line-height:1.55;margin-bottom:10px;color:var(--text)}
 .speaking-ans-label{font-size:12px;color:var(--hint);margin-bottom:4px}
-.speaking-textarea{width:100%;min-height:100px;border:2px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.5;background:var(--bg2);color:var(--text);resize:none;outline:none;transition:border-color 0.2s;font-family:inherit}
+.speaking-textarea{width:100%;min-height:100px;border:2px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.5;background:var(--bg3);color:var(--text);resize:none;outline:none;transition:border-color 0.2s;font-family:inherit}
 .speaking-textarea:focus{border-color:var(--accent)}
 
-/* SECTION INTRO */
-.section-intro{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;padding:24px;text-align:center;gap:12px}
-.section-intro-emoji{font-size:64px;margin-bottom:8px}
-.section-intro-title{font-size:22px;font-weight:800;color:var(--text)}
+/* ════ SECTION INTRO (per-section) ════ */
+.section-intro{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;padding:24px;text-align:center;gap:14px}
+.section-intro-emoji{font-size:68px;margin-bottom:4px;filter:drop-shadow(0 4px 12px rgba(0,0,0,0.4))}
+.section-intro-title{font-size:24px;font-weight:800;color:var(--text)}
 .section-intro-sub{font-size:14px;color:var(--hint);line-height:1.55;max-width:280px}
-.section-intro-timer{font-size:14px;font-weight:600;color:var(--accent)}
-.info-row{display:flex;align-items:center;gap:8px;background:var(--bg2);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--text)}
-.info-icon{font-size:16px}
+.section-intro-timer{font-size:14px;font-weight:700;color:var(--accent);background:rgba(33,150,243,0.12);padding:8px 18px;border-radius:20px}
+.info-row{display:flex;align-items:center;gap:10px;background:var(--bg2);border-radius:12px;padding:12px 16px;font-size:13px;color:var(--text);border:1px solid var(--border);width:100%;max-width:300px}
+.info-icon{font-size:17px}
 
-/* FOOTER */
-#footer{position:fixed;bottom:0;left:0;right:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--border)}
-#btn-action{width:100%;padding:15px;border:none;border-radius:14px;background:var(--accent);color:var(--accent-t);font-size:16px;font-weight:700;cursor:pointer;transition:opacity 0.2s;letter-spacing:0.2px}
-#btn-action:active{opacity:0.85}
-#btn-action:disabled{opacity:0.5;cursor:not-allowed}
+/* ════ FOOTER ════ */
+#footer{display:none;position:fixed;bottom:0;left:0;right:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--border)}
+#btn-action{width:100%;padding:15px;border:none;border-radius:14px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:16px;font-weight:700;cursor:pointer;transition:opacity 0.2s,transform 0.15s;letter-spacing:0.2px;box-shadow:0 4px 16px rgba(33,150,243,0.35)}
+#btn-action:active{opacity:0.85;transform:scale(0.98)}
+#btn-action:disabled{opacity:0.4;cursor:not-allowed;box-shadow:none}
 
-/* RESULT */
-#result-screen{display:none;padding:24px 16px;text-align:center;background:var(--bg);min-height:100vh}
-.result-header{margin-bottom:28px}
-.result-emoji{font-size:72px;margin-bottom:12px}
-.result-title{font-size:24px;font-weight:800;color:var(--text);margin-bottom:6px}
-.result-sub{font-size:14px;color:var(--hint)}
-.result-cards{display:flex;flex-direction:column;gap:12px;margin-bottom:24px}
-.result-card{background:var(--bg2);border-radius:16px;padding:18px;display:flex;align-items:center;justify-content:space-between}
-.result-card-label{font-size:14px;color:var(--hint);display:flex;align-items:center;gap:8px}
-.result-card-score{font-size:20px;font-weight:800;color:var(--accent)}
-.result-note{background:var(--bg2);border-radius:14px;padding:16px;font-size:13px;color:var(--hint);line-height:1.55}
-.close-btn{margin-top:20px;width:100%;padding:14px;border:none;border-radius:14px;background:var(--accent);color:var(--accent-t);font-size:15px;font-weight:700;cursor:pointer}
-
-/* GRAMMAR paginator */
+/* ════ GRAMMAR paginator ════ */
 .grammar-nav{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 4px}
 .grammar-progress{font-size:13px;color:var(--hint)}
-.grammar-dot-row{display:flex;gap:4px;flex-wrap:wrap;padding:0 16px 12px}
-.gdot{width:10px;height:10px;border-radius:50%;background:var(--bg2);cursor:pointer;transition:background 0.2s;flex-shrink:0}
+.grammar-dot-row{display:flex;gap:5px;flex-wrap:wrap;padding:0 16px 12px}
+.gdot{width:11px;height:11px;border-radius:50%;background:var(--bg3);cursor:pointer;transition:background 0.2s;flex-shrink:0}
 .gdot.answered{background:var(--accent)}
-.gdot.current{border:2px solid var(--accent);background:var(--accent-t)}
+.gdot.current{border:2px solid var(--accent);background:var(--bg)}
+
+/* ════ RESULT ════ */
+#result-screen{display:none;padding:0;background:var(--bg);min-height:100vh}
+.result-wrap{padding:28px 20px 40px}
+.result-header{text-align:center;margin-bottom:28px}
+.result-emoji{font-size:72px;margin-bottom:12px;filter:drop-shadow(0 4px 16px rgba(0,0,0,0.4))}
+.result-title{font-size:26px;font-weight:800;color:var(--text);margin-bottom:6px}
+.result-sub{font-size:14px;color:var(--hint)}
+.result-cards{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
+.result-card{background:var(--card-bg);border-radius:16px;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border)}
+.result-card-label{font-size:14px;color:var(--hint);display:flex;align-items:center;gap:8px}
+.result-card-score{font-size:22px;font-weight:800;color:var(--accent)}
+.result-note{background:var(--card-bg);border-radius:14px;padding:16px;font-size:13px;color:var(--hint);line-height:1.55;margin-bottom:20px;border:1px solid var(--border)}
+.close-btn{width:100%;padding:16px;border:none;border-radius:14px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(33,150,243,0.35)}
+
+/* ════ LOCKED SCREEN ════ */
+#locked-screen{display:none;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:20px;padding:32px;text-align:center;background:var(--bg)}
+.locked-icon{font-size:72px;filter:drop-shadow(0 4px 16px rgba(0,0,0,0.5))}
+.locked-title{font-size:22px;font-weight:800;color:var(--text)}
+.locked-sub{font-size:14px;color:var(--hint);line-height:1.6;max-width:280px}
+.locked-btn{width:100%;max-width:280px;padding:15px;border:none;border-radius:14px;background:var(--bg2);color:var(--hint);font-size:15px;font-weight:600;cursor:pointer;border:1px solid var(--border)}
 </style>
 </head>
 <body>
 
+<!-- LOADING -->
 <div id="loading-screen">
   <div class="spinner"></div>
   <div class="loading-text">Imtihon yuklanmoqda...</div>
 </div>
 
-<div id="app" style="display:none">
-  <div id="header">
-    <div id="section-steps"></div>
-    <div id="header-main">
-      <div id="section-label">
-        <span id="section-emoji">📖</span>
-        <div>
-          <div id="section-name">Bo'lim</div>
-          <div id="section-sub"></div>
-        </div>
-      </div>
-      <div id="timer-box">
-        <span id="timer-icon">⏱</span>
-        <span id="timer-val">--:--</span>
-      </div>
-    </div>
-    <div id="progress-wrap"><div id="progress-bar"></div></div>
+<!-- OVERVIEW INTRO SCREEN -->
+<div id="overview-screen">
+  <div class="ov-hero">
+    <div class="ov-emoji">🎓</div>
+    <div class="ov-title" id="ov-title">Imtihon</div>
+    <div class="ov-sub" id="ov-sub">Barcha bo'limlar</div>
+    <div class="ov-badge">⏱ <span id="ov-total-time">0</span> daqiqa</div>
   </div>
 
-  <div id="main"></div>
+  <div class="ov-body">
+    <div class="ov-section-title">Bo'limlar</div>
+    <div class="ov-section-list" id="ov-sections"></div>
 
-  <div id="footer">
-    <button id="btn-action">Davom etish →</button>
+    <div class="ov-section-title">📌 Qoidalar</div>
+    <div class="ov-rules">
+      <div class="ov-rule">
+        <div class="ov-rule-icon">⏱</div>
+        <div class="ov-rule-text">Har bo'limning vaqti hisoblanadi. <b>Vaqt tugasa, avtomatik o'tiladi.</b></div>
+      </div>
+      <div class="ov-rule">
+        <div class="ov-rule-icon">🔒</div>
+        <div class="ov-rule-text">Imtihon faqat <b>bir marta boshlanishi mumkin</b> — yopib, qayta kirish mumkin emas.</div>
+      </div>
+      <div class="ov-rule">
+        <div class="ov-rule-icon">🚫</div>
+        <div class="ov-rule-text">Imtihon vaqtida botdan chiqmang va <b>boshqa ilovaga o'tmang.</b></div>
+      </div>
+      <div class="ov-rule">
+        <div class="ov-rule-icon">✅</div>
+        <div class="ov-rule-text">Barcha bo'limlarni tugatgach natija <b>avtomatik yuboriladi.</b></div>
+      </div>
+    </div>
   </div>
 </div>
 
+<div id="ov-footer" style="display:none">
+  <button id="btn-start-exam">
+    <span class="btn-play">▶</span> Imtihonni boshlash
+  </button>
+</div>
+
+<!-- MAIN EXAM UI -->
+<div id="header">
+  <div id="section-steps"></div>
+  <div id="header-main">
+    <div id="section-label">
+      <span id="section-emoji">📖</span>
+      <div>
+        <div id="section-name">Bo'lim</div>
+        <div id="section-sub"></div>
+      </div>
+    </div>
+    <div id="timer-box">
+      <span id="timer-icon">⏱</span>
+      <span id="timer-val">--:--</span>
+    </div>
+  </div>
+  <div id="progress-wrap"><div id="progress-bar"></div></div>
+</div>
+
+<div id="main"></div>
+
+<div id="footer">
+  <button id="btn-action">Davom etish →</button>
+</div>
+
+<!-- RESULT -->
 <div id="result-screen"></div>
+
+<!-- LOCKED (exam already used) -->
+<div id="locked-screen">
+  <div class="locked-icon">🔒</div>
+  <div class="locked-title">Imtihon allaqachon boshlangan</div>
+  <div class="locked-sub">Siz bu imtihonga kirgansiz. Yana topshirish uchun botda qayta to'lov qiling.</div>
+  <button class="locked-btn" onclick="if(tg)tg.close()">Botga qaytish →</button>
+</div>
 
 <script>
 const tg = window.Telegram?.WebApp;
-if (tg) { tg.ready(); tg.expand(); }
+if (tg) { tg.ready(); tg.expand(); tg.disableClosingConfirmation?.(); }
 
 const OPTION_LETTERS = ['A','B','C','D','E','F'];
+
+const SECTION_ICONS = {
+  'passage_mcq': { bg:'#1565C0', emoji:'📖' },
+  'plain_mcq':   { bg:'#6A1B9A', emoji:'📝' },
+  'writing':     { bg:'#2E7D32', emoji:'✍️' },
+  'writing_tasks':{ bg:'#2E7D32', emoji:'✍️' },
+  'speaking':    { bg:'#BF360C', emoji:'🗣' },
+};
 
 const state = {
   token: null,
   examData: null,
-  si: 0,           // section index
-  pi: 0,           // passage index (for passage_mcq)
-  qi: 0,           // question index (for plain_mcq, shown in page of 5)
-  grammarPage: 0,  // for grammar pagination
-  answers: {},     // questionId -> answer string
-  writingTexts: {},// sectionId -> text (or taskNum -> text for ielts writing)
-  speakingTexts:{},// questionId -> text
-  timers: {},      // sectionId -> remaining seconds
+  si: 0,
+  pi: 0,
+  qi: 0,
+  grammarPage: 0,
+  answers: {},
+  writingTexts: {},
+  speakingTexts: {},
+  timers: {},
   activeTimer: null,
   showingIntro: true,
-  headerH: 100,
+  examStarted: false,
+  timerLocked: false,
+  headerH: 106,
 };
 
 const $ = id => document.getElementById(id);
 
-// ── Load exam data ──────────────────────────────────────────
+// ── Init ─────────────────────────────────────────────────────
 async function init() {
   const params = new URLSearchParams(location.search);
   state.token = params.get('token');
@@ -206,26 +312,105 @@ async function init() {
     if (state.examData.error) { showError(state.examData.error); return; }
   } catch(e) { showError('Tarmoq xatosi. Qayta urinib ko\'ring.'); return; }
 
-  // init timers
+  // init timers & answers
   for (const s of state.examData.sections) {
     state.timers[s.id] = (s.durationMinutes || 60) * 60;
-  }
-  // init answers containers
-  for (const s of state.examData.sections) {
-    if (!state.answers[s.id]) state.answers[s.id] = {};
+    state.answers[s.id] = {};
   }
 
   $('loading-screen').style.display = 'none';
-  $('app').style.display = 'block';
-  setTimeout(() => { state.headerH = $('header').offsetHeight; renderSection(); }, 100);
+  showOverview();
 }
 
 function showError(msg) {
-  $('loading-screen').innerHTML = `<div style="padding:32px;text-align:center;color:var(--danger)">
-    <div style="font-size:48px;margin-bottom:12px">⚠️</div>
-    <div style="font-size:16px;font-weight:700;margin-bottom:8px">Xatolik</div>
-    <div style="font-size:14px;color:var(--hint)">${msg}</div>
-  </div>`;
+  $('loading-screen').innerHTML = `
+    <div style="padding:32px;text-align:center">
+      <div style="font-size:52px;margin-bottom:14px">⚠️</div>
+      <div style="font-size:17px;font-weight:700;margin-bottom:8px;color:#FF453A">Xatolik</div>
+      <div style="font-size:14px;color:var(--hint);line-height:1.5">${msg}</div>
+    </div>`;
+}
+
+// ── Overview screen ──────────────────────────────────────────
+function showOverview() {
+  const exam = state.examData;
+  const isIelts = exam.examType === 'ielts';
+
+  // title
+  if (isIelts) {
+    $('ov-title').textContent = 'IELTS Mock Exam';
+    $('ov-sub').textContent = 'Mock imtihon';
+  } else {
+    const lvl = exam.certLevel || exam.level || '';
+    const lvlName = lvl === 'B2' ? 'B2 Upper-Intermediate' : lvl === 'C1' ? 'C1 Advanced' : lvl;
+    $('ov-title').textContent = 'Sertifikat imtihoni';
+    $('ov-sub').textContent = (lvlName ? lvlName + ' darajasi' : 'Rus tili imtihoni');
+  }
+
+  // total time
+  const totalMin = exam.sections.reduce((a, s) => a + (s.durationMinutes || 0), 0);
+  $('ov-total-time').textContent = totalMin;
+
+  // section list
+  const container = $('ov-sections');
+  container.innerHTML = '';
+  exam.sections.forEach(s => {
+    const cfg = SECTION_ICONS[s.type] || { bg:'#424242', emoji:'📋' };
+    const qs = s.passages
+      ? s.passages.reduce((a,p)=>a+(p.questions?.length||0),0)
+      : s.questions?.length ?? 0;
+    const metaParts = [];
+    if (qs) metaParts.push(qs + ' savol');
+    const card = document.createElement('div');
+    card.className = 'ov-section-card';
+    card.innerHTML = `
+      <div class="ov-section-icon" style="background:${cfg.bg}22;border:1px solid ${cfg.bg}44">${s.emoji || cfg.emoji}</div>
+      <div class="ov-section-info">
+        <div class="ov-section-name">${s.name || s.nameUz || ''}</div>
+        <div class="ov-section-meta">
+          ${metaParts.length ? `<span>${metaParts.join(' · ')}</span>` : ''}
+        </div>
+      </div>
+      <div class="ov-section-time">${s.durationMinutes || 0} daq</div>`;
+    container.appendChild(card);
+  });
+
+  $('overview-screen').style.display = 'block';
+  $('ov-footer').style.display = 'block';
+  $('btn-start-exam').onclick = onStartExam;
+}
+
+async function onStartExam() {
+  const btn = $('btn-start-exam');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:22px;height:22px;border-width:2px"></div>';
+
+  // Lock exam in DB
+  try {
+    await fetch('/api/exam/timer-start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: state.token }),
+    });
+  } catch(e) { /* non-blocking */ }
+
+  // Enable closing confirmation after lock
+  tg?.enableClosingConfirmation?.();
+
+  state.examStarted = true;
+  state.timerLocked = true;
+
+  // Hide overview, show exam
+  $('overview-screen').style.display = 'none';
+  $('ov-footer').style.display = 'none';
+  $('header').style.display = 'block';
+  $('main').style.display = 'block';
+  $('footer').style.display = 'block';
+
+  setTimeout(() => {
+    state.headerH = $('header').offsetHeight;
+    renderSection();
+  }, 80);
 }
 
 // ── Timer ────────────────────────────────────────────────────
@@ -256,8 +441,6 @@ function renderTimerDisplay(sectionId) {
 }
 
 function autoAdvance() {
-  const sec = currentSection();
-  if (!sec) return;
   if (state.showingIntro) { state.showingIntro = false; renderSection(); return; }
   advanceSection();
 }
@@ -310,6 +493,7 @@ function renderSection() {
   if (state.showingIntro) {
     renderIntro(sec);
     $('btn-action').textContent = 'Boshlash ▶';
+    $('btn-action').disabled = false;
     $('btn-action').onclick = () => {
       state.showingIntro = false;
       startTimer(sec.id);
@@ -318,16 +502,13 @@ function renderSection() {
     return;
   }
 
-  if (!state.activeTimer && !state.timers._started?.[sec.id]) {
-    startTimer(sec.id);
-  }
+  if (!state.activeTimer) startTimer(sec.id);
 
   if (sec.type === 'passage_mcq') renderPassageMCQ(sec);
   else if (sec.type === 'plain_mcq') renderPlainMCQ(sec);
   else if (sec.type === 'writing') renderWriting(sec);
   else if (sec.type === 'writing_tasks') renderWritingTasks(sec);
   else if (sec.type === 'speaking') renderSpeaking(sec);
-  else renderSection();
 }
 
 function renderIntro(sec) {
@@ -351,13 +532,12 @@ function renderIntro(sec) {
 // ── Passage MCQ ───────────────────────────────────────────────
 function renderPassageMCQ(sec) {
   const passages = sec.passages || [];
-  if (passages.length === 0) { advanceSection(); return; }
+  if (!passages.length) { advanceSection(); return; }
   const p = passages[state.pi];
   if (!p) { advanceSection(); return; }
 
   const total = passages.length;
   const isLast = state.pi >= total - 1;
-  const allAnswered = allPassageAnswered(sec);
 
   $('main').innerHTML = `
     <div class="passage-card">
@@ -369,16 +549,12 @@ function renderPassageMCQ(sec) {
     </div>
     <div style="padding:0 16px 8px;display:flex;gap:8px;justify-content:space-between;align-items:center">
       <span style="font-size:12px;color:var(--hint)">${state.pi+1} / ${total} matn</span>
-      ${state.pi > 0 ? `<button onclick="prevPassage()" style="background:none;border:1px solid var(--border);padding:6px 12px;border-radius:8px;font-size:13px;color:var(--text);cursor:pointer">← Ortga</button>` : '<span></span>'}
+      ${state.pi > 0 ? `<button onclick="prevPassage()" style="background:var(--bg2);border:1px solid var(--border);padding:8px 14px;border-radius:10px;font-size:13px;color:var(--text);cursor:pointer">← Ortga</button>` : '<span></span>'}
     </div>`;
 
   attachOptionListeners(sec.id);
 
-  if (isLast && allAnswered) {
-    $('btn-action').textContent = 'Bo\'limni tugatish ✓';
-    $('btn-action').disabled = false;
-    $('btn-action').onclick = () => advanceSection();
-  } else if (isLast) {
+  if (isLast) {
     $('btn-action').textContent = 'Bo\'limni tugatish ✓';
     $('btn-action').disabled = false;
     $('btn-action').onclick = () => advanceSection();
@@ -413,7 +589,7 @@ function prevPassage() {
 // ── Plain MCQ (Grammar) ───────────────────────────────────────
 function renderPlainMCQ(sec) {
   const questions = sec.questions || [];
-  if (questions.length === 0) { advanceSection(); return; }
+  if (!questions.length) { advanceSection(); return; }
   const PAGE = 5;
   const totalPages = Math.ceil(questions.length / PAGE);
   const start = state.grammarPage * PAGE;
@@ -450,18 +626,15 @@ function renderPlainMCQ(sec) {
   renderProgress();
 }
 
-function goGrammarPage(page) {
-  state.grammarPage = page;
-  renderSection();
-}
+function goGrammarPage(page) { state.grammarPage = page; renderSection(); }
 
-// ── Question card renderer ────────────────────────────────────
+// ── Question card ─────────────────────────────────────────────
 function renderQuestionCard(q, globalIdx, sectionId) {
   const qType = (q.type || q.question_type || 'multiple_choice').toLowerCase();
   const opts = parseOptions(q.options);
   const selected = state.answers[sectionId]?.[q.id] || null;
 
-  if ((qType.includes('multiple') || qType.includes('true_false') || opts.length > 0)) {
+  if (qType.includes('multiple') || qType.includes('true_false') || opts.length > 0) {
     const optHtml = opts.map((opt, i) => {
       const letter = opt.letter || OPTION_LETTERS[i] || String(i+1);
       const txt = opt.text || opt;
@@ -480,7 +653,6 @@ function renderQuestionCard(q, globalIdx, sectionId) {
       <div class="options-list">${optHtml}</div>
     </div>`;
   } else {
-    // fill blank / short answer
     const curVal = state.answers[sectionId]?.[q.id] || '';
     return `<div class="q-card">
       <div class="q-head">
@@ -511,14 +683,11 @@ function attachOptionListeners(sectionId) {
   document.querySelectorAll('.option').forEach(el => {
     el.addEventListener('click', () => {
       const qid = el.dataset.qid;
-      const sid = el.dataset.sid;
       const ans = el.dataset.ans;
-      if (!state.answers[sid]) state.answers[sid] = {};
-      state.answers[sid][qid] = ans;
-      // re-render only that question's options
+      if (!state.answers[sectionId]) state.answers[sectionId] = {};
+      state.answers[sectionId][qid] = ans;
       document.querySelectorAll(`.option[data-qid="${qid}"]`).forEach(o => {
-        const isSel = o.dataset.ans === ans;
-        o.classList.toggle('selected', isSel);
+        o.classList.toggle('selected', o.dataset.ans === ans);
       });
       renderProgress();
     });
@@ -536,25 +705,22 @@ function renderWriting(sec) {
         <div class="writing-prompt-text">${escHtml(sec.prompt || '')}</div>
       </div>
       <textarea class="writing-textarea" id="writing-ta" placeholder="Javobingizni shu yerga yozing..." rows="12">${escHtml(text)}</textarea>
-      <div class="word-count ${wc >= 150 ? 'ok' : wc > 100 ? 'warn' : ''}" id="wc-label">${wc} so'z ${wc >= 150 ? '✓' : '(kamida 150)'}</div>
+      <div class="word-count ${wc>=150?'ok':wc>100?'warn':''}" id="wc-label">${wc} so'z ${wc>=150?'✓':'(kamida 150)'}</div>
     </div>`;
-
   const ta = $('writing-ta');
   ta.addEventListener('input', () => {
-    const v = ta.value;
-    state.writingTexts[sec.id] = v;
-    const w = v.trim() ? v.trim().split(/\s+/).length : 0;
+    state.writingTexts[sec.id] = ta.value;
+    const w = ta.value.trim() ? ta.value.trim().split(/\s+/).length : 0;
     const lbl = $('wc-label');
-    lbl.textContent = w + ' so\'z ' + (w >= 150 ? '✓' : '(kamida 150)');
-    lbl.className = 'word-count ' + (w >= 150 ? 'ok' : w > 100 ? 'warn' : '');
+    lbl.textContent = w + ' so\'z ' + (w>=150?'✓':'(kamida 150)');
+    lbl.className = 'word-count ' + (w>=150?'ok':w>100?'warn':'');
   });
-
   $('btn-action').textContent = 'Bo\'limni tugatish ✓';
   $('btn-action').disabled = false;
   $('btn-action').onclick = () => advanceSection();
 }
 
-// ── Writing Tasks (IELTS: task1 + task2) ─────────────────────
+// ── Writing Tasks (IELTS) ─────────────────────────────────────
 function renderWritingTasks(sec) {
   const tasks = sec.tasks || [];
   if (!state.writingTexts[sec.id]) state.writingTexts[sec.id] = {};
@@ -568,22 +734,19 @@ function renderWritingTasks(sec) {
         <div class="writing-prompt-text">${escHtml(t.prompt || '')}</div>
       </div>
       <textarea class="writing-textarea" data-task="${t.taskNumber}" placeholder="Task ${t.taskNumber} javobingiz..." rows="10">${escHtml(text)}</textarea>
-      <div class="word-count ${wc >= minW ? 'ok' : wc > 80 ? 'warn' : ''}" id="wc-${t.taskNumber}">${wc} so'z (kamida ${minW})</div>`;
+      <div class="word-count ${wc>=minW?'ok':wc>80?'warn':''}" id="wc-${t.taskNumber}">${wc} so'z (kamida ${minW})</div>`;
   }).join('<div style="height:20px"></div>');
-
   $('main').innerHTML = `<div class="writing-section">${html}</div>`;
-
   document.querySelectorAll('.writing-textarea').forEach(ta => {
     ta.addEventListener('input', () => {
       const key = 'task' + ta.dataset.task;
       state.writingTexts[sec.id][key] = ta.value;
       const w = ta.value.trim() ? ta.value.trim().split(/\s+/).length : 0;
-      const minW = Number(ta.dataset.task) === 1 ? 150 : 250;
+      const minW = Number(ta.dataset.task)===1?150:250;
       const lbl = $('wc-' + ta.dataset.task);
-      if (lbl) { lbl.textContent = w + ' so\'z (kamida ' + minW + ')'; lbl.className = 'word-count ' + (w >= minW ? 'ok' : w > 80 ? 'warn' : ''); }
+      if (lbl) { lbl.textContent = w+' so\'z (kamida '+minW+')'; lbl.className='word-count '+(w>=minW?'ok':w>80?'warn':''); }
     });
   });
-
   $('btn-action').textContent = 'Bo\'limni tugatish ✓';
   $('btn-action').disabled = false;
   $('btn-action').onclick = () => advanceSection();
@@ -598,21 +761,19 @@ function renderSpeaking(sec) {
         <div class="speaking-intro-icon">🗣</div>
         <div class="speaking-intro-text">Quyidagi savollarga <b>o'zbek yoki rus tilida</b> javob bering. Fikrlaringizni to'liq yozing.</div>
       </div>
-      ${questions.map((q, i) => {
+      ${questions.map((q,i) => {
         const cur = state.speakingTexts[q.id] || '';
         return `<div class="speaking-q-card">
-          <div class="speaking-q-label">Savol ${i+1}${q.partNumber ? ' · ' + q.partNumber + '-qism' : ''}</div>
-          <div class="speaking-q-text">${escHtml(q.text || q.question_text || '')}</div>
+          <div class="speaking-q-label">Savol ${i+1}${q.partNumber?' · '+q.partNumber+'-qism':''}</div>
+          <div class="speaking-q-text">${escHtml(q.text||q.question_text||'')}</div>
           <div class="speaking-ans-label">Javobingiz:</div>
           <textarea class="speaking-textarea" data-qid="${q.id}" placeholder="Bu yerga yozing..." rows="4">${escHtml(cur)}</textarea>
         </div>`;
       }).join('')}
     </div>`;
-
   document.querySelectorAll('.speaking-textarea').forEach(ta => {
     ta.addEventListener('input', () => { state.speakingTexts[ta.dataset.qid] = ta.value; });
   });
-
   $('btn-action').textContent = 'Imtihonni yakunlash ✓';
   $('btn-action').disabled = false;
   $('btn-action').onclick = () => advanceSection();
@@ -625,45 +786,38 @@ function advanceSection() {
   state.pi = 0;
   state.grammarPage = 0;
   state.showingIntro = true;
-  if (state.si >= totalSections()) {
-    doSubmit();
-  } else {
-    renderSection();
-  }
+  if (state.si >= totalSections()) doSubmit();
+  else renderSection();
 }
 
 // ── Submit ────────────────────────────────────────────────────
 async function doSubmit() {
   if (state.activeTimer) clearInterval(state.activeTimer);
-  $('app').style.display = 'none';
+  tg?.disableClosingConfirmation?.();
+  $('header').style.display = 'none';
+  $('main').style.display = 'none';
+  $('footer').style.display = 'none';
   $('result-screen').style.display = 'block';
-  $('result-screen').innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:16px">
-    <div class="spinner"></div>
-    <div style="font-size:14px;color:var(--hint)">Natijalar hisoblanmoqda...</div>
-    <div style="font-size:12px;color:var(--hint)">AI baholash ~30 soniya davom etishi mumkin</div>
-  </div>`;
+  $('result-screen').innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:18px;padding:32px;text-align:center">
+      <div class="spinner" style="width:52px;height:52px;border-width:4px"></div>
+      <div style="font-size:16px;font-weight:700;color:var(--text)">Natijalar hisoblanmoqda...</div>
+      <div style="font-size:13px;color:var(--hint)">AI baholash ~30 soniya davom etishi mumkin</div>
+    </div>`;
 
   try {
-    const payload = {
-      token: state.token,
-      mcqAnswers: {},
-      writingTexts: state.writingTexts,
-      speakingTexts: state.speakingTexts,
-    };
-    // merge all mcq answers from all sections
+    const payload = { token: state.token, mcqAnswers: {}, writingTexts: state.writingTexts, speakingTexts: state.speakingTexts };
     for (const [sid, ans] of Object.entries(state.answers)) {
       for (const [qid, answer] of Object.entries(ans)) {
         payload.mcqAnswers[qid] = answer;
       }
     }
-
     const resp = await fetch('/api/exam/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
     const data = await resp.json();
-
     if (data.error) { showSubmitError(data.error); return; }
     showResult(data);
   } catch(e) {
@@ -672,12 +826,13 @@ async function doSubmit() {
 }
 
 function showSubmitError(msg) {
-  $('result-screen').innerHTML = `<div style="padding:32px;text-align:center">
-    <div style="font-size:48px;margin-bottom:12px">❌</div>
-    <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--danger)">Yuborishda xatolik</div>
-    <div style="font-size:13px;color:var(--hint);margin-bottom:20px">${msg}</div>
-    <button onclick="doSubmit()" style="background:var(--accent);color:var(--accent-t);border:none;padding:14px 28px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer">Qayta urinib ko'ring</button>
-  </div>`;
+  $('result-screen').innerHTML = `
+    <div style="padding:40px 24px;text-align:center">
+      <div style="font-size:52px;margin-bottom:14px">❌</div>
+      <div style="font-size:17px;font-weight:700;margin-bottom:8px;color:var(--danger)">Yuborishda xatolik</div>
+      <div style="font-size:13px;color:var(--hint);margin-bottom:24px;line-height:1.5">${msg}</div>
+      <button onclick="doSubmit()" style="background:var(--accent);color:#fff;border:none;padding:14px 28px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(33,150,243,0.35)">Qayta urinib ko'ring</button>
+    </div>`;
 }
 
 function showResult(data) {
@@ -690,7 +845,7 @@ function showResult(data) {
   let scoresHtml = '';
   if (data.scores) {
     for (const [key, val] of Object.entries(data.scores)) {
-      const lbl = { reading: '📖 Reading', listening: '🎧 Listening', grammar: '📝 Grammar', writing: '✍️ Writing', speaking: '🗣 Speaking', reading_score: '📖 Reading', listening_score: '🎧 Listening', grammar_score: '📝 Grammar', writing_score: '✍️ Writing', speaking_score: '🗣 Speaking' }[key] || key;
+      const lbl = { reading:'📖 Reading', listening:'🎧 Listening', grammar:'📝 Grammar', writing:'✍️ Writing', speaking:'🗣 Speaking', reading_score:'📖 Reading', listening_score:'🎧 Listening', grammar_score:'📝 Grammar', writing_score:'✍️ Writing', speaking_score:'🗣 Speaking' }[key] || key;
       const fmt = isIelts ? Number(val).toFixed(1) : Math.round(val) + '%';
       scoresHtml += `<div class="result-card"><div class="result-card-label">${lbl}</div><div class="result-card-score">${fmt}</div></div>`;
     }
@@ -700,17 +855,17 @@ function showResult(data) {
   const passText = passed === true ? '✅ Siz imtihondan o\'tdingiz!' : passed === false ? '❌ Imtihon natijangiz o\'tish ballidan past.' : '';
 
   $('result-screen').innerHTML = `
-    <div class="result-header" style="padding-top:32px">
-      <div class="result-emoji">${emoji}</div>
-      <div class="result-title">${isIelts ? 'IELTS ' + overallLabel + ' Band' : overallLabel}</div>
-      <div class="result-sub">${passText || 'Imtihon yakunlandi'}</div>
-    </div>
-    <div class="result-cards">${scoresHtml}</div>
-    <div class="result-note">📱 To'liq natijalar va fikr-mulohazalar Telegram botida yuborildi. Botga qayting.</div>
-    <button class="close-btn" onclick="closeMiniApp()">Botga qaytish →</button>`;
+    <div class="result-wrap">
+      <div class="result-header">
+        <div class="result-emoji">${emoji}</div>
+        <div class="result-title">${isIelts ? 'IELTS ' + overallLabel + ' Band' : overallLabel}</div>
+        <div class="result-sub">${passText || 'Imtihon yakunlandi'}</div>
+      </div>
+      <div class="result-cards">${scoresHtml}</div>
+      <div class="result-note">📱 To'liq natijalar va fikr-mulohazalar Telegram botida yuborildi. Botga qayting.</div>
+      <button class="close-btn" onclick="if(tg)tg.close()">Botga qaytish →</button>
+    </div>`;
 }
-
-function closeMiniApp() { if (tg) tg.close(); }
 
 function bandEmoji(b) {
   if (b >= 8) return '🏆';
@@ -720,7 +875,7 @@ function bandEmoji(b) {
   return '📚';
 }
 
-// ── Utilities ─────────────────────────────────────────────────
+// ── Utilities ──────────────────────────────────────────────────
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function escAttr(s) { return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
