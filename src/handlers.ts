@@ -123,6 +123,29 @@ const ADMIN_KEYBOARD: ReplyKeyboardMarkup = {
   one_time_keyboard: false,
 };
 
+function formatReplyForChat(reply: string): string {
+  const sepIndex = reply.search(/^---$/m);
+  const before = sepIndex >= 0 ? reply.slice(0, sepIndex) : reply;
+  const after  = sepIndex >= 0 ? reply.slice(sepIndex + 3).trimStart() : "";
+
+  const correctionLines: string[] = [];
+  const mainLines: string[] = [];
+
+  for (const line of before.split("\n")) {
+    const t = line.trim();
+    if (!t) continue;
+    if (/[❌✅]/.test(t)) correctionLines.push(t);
+    else mainLines.push(t);
+  }
+
+  const sections: string[] = [];
+  if (correctionLines.length) sections.push(correctionLines.join("\n"));
+  if (mainLines.length)       sections.push(`<b>${mainLines.join("\n")}</b>`);
+  if (after)                  sections.push(`---\n${after}`);
+
+  return sections.join("\n\n");
+}
+
 function mkb(chatId: number): ReplyKeyboardMarkup {
   const personalityBtn = getPersonality(chatId) === "sarcastic"
     ? { text: BTN_PERSONALITY_NORMAL }
@@ -961,7 +984,7 @@ export function registerHandlers(bot: TelegramBot): void {
       if (hasCorrection) recordCorrection(chatId);
 
       if (hasCorrection) {
-        await bot.editMessageText(`🎙 Siz: "<i>${userText}</i>"\n\n${reply}`, {
+        await bot.editMessageText(`🎙 Siz: "<i>${userText}</i>"\n\n${formatReplyForChat(reply)}`, {
           chat_id: chatId, message_id: processingMsg.message_id, parse_mode: "HTML",
         });
       } else {
@@ -970,7 +993,10 @@ export function registerHandlers(bot: TelegramBot): void {
       }
 
       const audioBuffer = await textToSpeech(reply, mode);
-      await bot.sendVoice(chatId, audioBuffer, { caption: hasCorrection ? undefined : reply });
+      await bot.sendVoice(chatId, audioBuffer, {
+        caption: hasCorrection ? undefined : formatReplyForChat(reply),
+        parse_mode: hasCorrection ? undefined : "HTML",
+      });
 
       if (isSubscribed(chatId, mode) && getDailyCount(chatId, mode) >= DAILY_MSG_LIMIT - 5) {
         const left = DAILY_MSG_LIMIT - getDailyCount(chatId, mode);
@@ -1288,7 +1314,7 @@ export function registerHandlers(bot: TelegramBot): void {
       const hasCorrection = reply.includes("❌") || reply.includes("✅");
       if (hasCorrection) recordCorrection(chatId);
 
-      await bot.sendMessage(chatId, reply, { reply_markup: mkb(chatId) });
+      await bot.sendMessage(chatId, formatReplyForChat(reply), { parse_mode: "HTML", reply_markup: mkb(chatId) });
 
       const audioBuffer = await textToSpeech(reply, mode);
       await bot.sendVoice(chatId, audioBuffer);
