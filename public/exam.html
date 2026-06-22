@@ -538,6 +538,9 @@ function renderSection() {
   const sec = currentSection();
   if (!sec) { doSubmit(); return; }
 
+  window.scrollTo({ top: 0, behavior: 'instant' });
+  document.getElementById('main').scrollTop = 0;
+
   renderHeader(sec);
   $('main').style.paddingTop = ($('header').offsetHeight + 4) + 'px';
 
