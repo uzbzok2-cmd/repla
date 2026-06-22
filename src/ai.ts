@@ -167,12 +167,16 @@ function extractRussianPart(text: string): string {
   const lines = text.split("\n");
   const result: string[] = [];
   for (const line of lines) {
+    if (line.trim() === "---") break;
     if (/[\u0400-\u04FF]/.test(line)) {
-      const cleaned = line.replace(/[❌✅→]/g, "").replace(/\s+/g, " ").trim();
-      if (cleaned.length > 0) result.push(cleaned);
+      const isUzbek = /\b(bu|va|ham|uchun|bilan|men|siz|biz|ular|nima|qanday|qaysi)\b/i.test(line);
+      if (!isUzbek) {
+        const cleaned = line.replace(/[❌✅→]/g, "").replace(/\s+/g, " ").trim();
+        if (cleaned.length > 0) result.push(cleaned);
+      }
     }
   }
-  return result.length > 0 ? result.join(". ") : text.replace(/[❌✅→]/g, "").trim();
+  return result.length > 0 ? result.join(". ") : text.split("---")[0]?.replace(/[❌✅→]/g, "").trim() ?? text;
 }
 
 function extractTurkishPart(text: string): string {

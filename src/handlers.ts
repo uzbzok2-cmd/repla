@@ -63,6 +63,9 @@ import {
   CARD_NUMBER,
   PRICE_UZS,
   ADMIN_USERNAME,
+  DAILY_MSG_LIMIT,
+  incrementDailyCount,
+  getDailyCount,
   type PendingPayment,
 } from "./subscription.js";
 import { dbSaveAdminChatId } from "./registration.js";
@@ -162,17 +165,32 @@ function getModeWelcome(mode: LearningMode): string {
 }
 
 async function showNoAccessMessage(bot: TelegramBot, chatId: number, lang: LearningMode): Promise<void> {
-  await bot.sendMessage(
-    chatId,
-    `🔒 <b>${langLabel(lang)} — Bepul xabarlar tugadi!</b>\n\n` +
-    `━━━━━━━━━━━━━━━━━━━━\n` +
-    `📚 Davom etish uchun haftalik obuna kerak\n` +
-    `💰 Narxi: <b>${PRICE_UZS}</b> / hafta\n` +
-    `📅 Muddat: <b>7 kun</b>\n` +
-    `━━━━━━━━━━━━━━━━━━━━\n\n` +
-    `👇 Qaysi til uchun obuna olmoqchisiz?`,
-    { parse_mode: "HTML", reply_markup: langInlineKeyboard() }
-  );
+  if (isSubscribed(chatId, lang)) {
+    const used = getDailyCount(chatId, lang);
+    await bot.sendMessage(
+      chatId,
+      `⏳ <b>${langLabel(lang)} — Bugungi limit tugadi!</b>\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n` +
+      `💬 Bugun ishlatilgan: <b>${used}/${DAILY_MSG_LIMIT}</b>\n` +
+      `📅 Limit har kuni yarim tunda yangilanadi\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `⏰ Ertaga yana <b>${DAILY_MSG_LIMIT} ta</b> xabar yuborishingiz mumkin!`,
+      { parse_mode: "HTML", reply_markup: mkb(chatId) }
+    );
+  } else {
+    await bot.sendMessage(
+      chatId,
+      `🔒 <b>${langLabel(lang)} — Bepul xabarlar tugadi!</b>\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n` +
+      `📚 Davom etish uchun haftalik obuna kerak\n` +
+      `💰 Narxi: <b>${PRICE_UZS}</b> / til / hafta\n` +
+      `📅 Muddat: <b>7 kun</b>\n` +
+      `💬 Kunlik limit: <b>${DAILY_MSG_LIMIT} xabar/kun</b>\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `👇 Qaysi til uchun obuna olmoqchisiz?`,
+      { parse_mode: "HTML", reply_markup: langInlineKeyboard() }
+    );
+  }
 }
 
 async function showPaymentInstructions(bot: TelegramBot, chatId: number, lang: LearningMode): Promise<void> {
@@ -183,7 +201,7 @@ async function showPaymentInstructions(bot: TelegramBot, chatId: number, lang: L
     `━━━━━━━━━━━━━━━━━━━━\n` +
     `💰 Narxi: <b>${PRICE_UZS}</b>\n` +
     `📅 Muddat: <b>7 kun</b>\n` +
-    `♾️ Xabarlar: <b>Cheksiz</b>\n` +
+    `💬 Xabarlar: <b>${DAILY_MSG_LIMIT} ta/kun (7 kunda ${DAILY_MSG_LIMIT * 7} ta)</b>\n` +
     `━━━━━━━━━━━━━━━━━━━━\n\n` +
     `💳 <b>Quyidagi karta raqamiga to'lov qiling:</b>\n\n` +
     `<code>${CARD_NUMBER}</code>\n\n` +
@@ -904,7 +922,11 @@ export function registerHandlers(bot: TelegramBot): void {
       }
 
       recordVoiceMessage(chatId);
-      if (!isSubscribed(chatId, mode)) consumeFree(chatId, mode);
+      if (isSubscribed(chatId, mode)) {
+        incrementDailyCount(chatId, mode);
+      } else {
+        consumeFree(chatId, mode);
+      }
 
       await bot.editMessageText(
         `🎙 Siz: "<i>${userText}</i>"\n\n⏳ Tahlil qilyapman...`,
@@ -930,7 +952,16 @@ export function registerHandlers(bot: TelegramBot): void {
       const audioBuffer = await textToSpeech(reply, mode);
       await bot.sendVoice(chatId, audioBuffer, { caption: hasCorrection ? undefined : reply });
 
-      if (!isSubscribed(chatId, mode) && getFreeLeft(chatId, mode) === 1) {
+      if (isSubscribed(chatId, mode) && getDailyCount(chatId, mode) >= DAILY_MSG_LIMIT - 5) {
+        const left = DAILY_MSG_LIMIT - getDailyCount(chatId, mode);
+        if (left > 0) {
+          await bot.sendMessage(
+            chatId,
+            `⚠️ <b>Bugun ${left} ta xabar qoldi!</b> (${getDailyCount(chatId, mode)}/${DAILY_MSG_LIMIT})`,
+            { parse_mode: "HTML" }
+          );
+        }
+      } else if (!isSubscribed(chatId, mode) && getFreeLeft(chatId, mode) === 1) {
         await bot.sendMessage(
           chatId,
           `⚠️ <b>${langLabel(mode)} uchun 1 ta bepul xabar qoldi!</b>\nObuna olish uchun pastdagi tugmani bosing 👇`,
@@ -1202,7 +1233,11 @@ export function registerHandlers(bot: TelegramBot): void {
 
     try {
       recordTextMessage(chatId);
-      if (!isSubscribed(chatId, mode)) consumeFree(chatId, mode);
+      if (isSubscribed(chatId, mode)) {
+        incrementDailyCount(chatId, mode);
+      } else {
+        consumeFree(chatId, mode);
+      }
 
       addMessage(chatId, "user", text);
       const reply = await getTutorReply(getSession(chatId), getSystemPrompt(chatId));
@@ -1216,7 +1251,16 @@ export function registerHandlers(bot: TelegramBot): void {
       const audioBuffer = await textToSpeech(reply, mode);
       await bot.sendVoice(chatId, audioBuffer);
 
-      if (!isSubscribed(chatId, mode) && getFreeLeft(chatId, mode) === 1) {
+      if (isSubscribed(chatId, mode) && getDailyCount(chatId, mode) >= DAILY_MSG_LIMIT - 5) {
+        const left = DAILY_MSG_LIMIT - getDailyCount(chatId, mode);
+        if (left > 0) {
+          await bot.sendMessage(
+            chatId,
+            `⚠️ <b>Bugun ${left} ta xabar qoldi!</b> (${getDailyCount(chatId, mode)}/${DAILY_MSG_LIMIT})`,
+            { parse_mode: "HTML" }
+          );
+        }
+      } else if (!isSubscribed(chatId, mode) && getFreeLeft(chatId, mode) === 1) {
         await bot.sendMessage(
           chatId,
           `⚠️ <b>${langLabel(mode)} uchun 1 ta bepul xabar qoldi!</b>\nObuna olish uchun tugmani bosing 👇`,

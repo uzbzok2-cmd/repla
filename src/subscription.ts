@@ -1,10 +1,11 @@
 import type { LearningMode } from "./sessions.js";
 
 export const CARD_NUMBER = "9860 3501 4197 4070";
-export const PRICE_UZS = "5 000 so'm";
+export const PRICE_UZS = "7 000 so'm";
 export const ADMIN_USERNAME = "drector_uz";
 export const SUBSCRIPTION_DAYS = 7;
 export const FREE_LIMIT = 3;
+export const DAILY_MSG_LIMIT = 50;
 
 export const LANGUAGES: { key: LearningMode; label: string; flag: string }[] = [
   { key: "russian", label: "Ruscha", flag: "🇷🇺" },
@@ -40,6 +41,8 @@ export interface PaymentFlow {
 const freeMessages = new Map<number, Map<LearningMode, number>>();
 // userId -> { language -> expiry Date }
 const subscriptions = new Map<number, Map<LearningMode, Date>>();
+// userId -> { language -> { date: "YYYY-MM-DD", count: number } }
+const dailyMsgCount = new Map<number, Map<LearningMode, { date: string; count: number }>>();
 // userId -> pending payment
 const pendingPayments = new Map<number, PendingPayment>();
 // userId -> payment flow state
@@ -132,8 +135,30 @@ export function isSubscribed(userId: number, lang: LearningMode): boolean {
   return !!exp && exp > new Date();
 }
 
+export function getDailyCount(userId: number, lang: LearningMode): number {
+  const today = new Date().toISOString().slice(0, 10);
+  const entry = dailyMsgCount.get(userId)?.get(lang);
+  if (!entry || entry.date !== today) return 0;
+  return entry.count;
+}
+
+export function incrementDailyCount(userId: number, lang: LearningMode): void {
+  const today = new Date().toISOString().slice(0, 10);
+  if (!dailyMsgCount.has(userId)) dailyMsgCount.set(userId, new Map());
+  const userMap = dailyMsgCount.get(userId)!;
+  const entry = userMap.get(lang);
+  if (!entry || entry.date !== today) {
+    userMap.set(lang, { date: today, count: 1 });
+  } else {
+    entry.count++;
+  }
+}
+
 export function canSend(userId: number, lang: LearningMode): boolean {
-  return isSubscribed(userId, lang) || getFreeLeft(userId, lang) > 0;
+  if (isSubscribed(userId, lang)) {
+    return getDailyCount(userId, lang) < DAILY_MSG_LIMIT;
+  }
+  return getFreeLeft(userId, lang) > 0;
 }
 
 export function grantAccess(userId: number, lang: LearningMode, days = SUBSCRIPTION_DAYS): void {
@@ -181,7 +206,9 @@ export function formatStatus(userId: number): string {
     if (isSubscribed(userId, key)) {
       const exp = getExpiry(userId, key)!;
       const days = Math.ceil((exp.getTime() - Date.now()) / 86400000);
-      lines.push(`${flag} ${label}\n   ✅ Faol — ${days} kun qoldi`);
+      const used = getDailyCount(userId, key);
+      const left = DAILY_MSG_LIMIT - used;
+      lines.push(`${flag} ${label}\n   ✅ Faol — ${days} kun qoldi\n   💬 Bugun: ${used}/${DAILY_MSG_LIMIT} (${left} ta qoldi)`);
     } else {
       const left = getFreeLeft(userId, key);
       lines.push(left > 0
