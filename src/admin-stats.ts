@@ -19,10 +19,14 @@ export async function getAdminInfoStats(): Promise<string> {
       LEFT JOIN cert_exam_scores es ON es.user_exam_id = ue.id
     `),
 
-    pool.query<{ paid: string }>(`
-      SELECT COUNT(*)::int AS paid
-      FROM user_exams
-      WHERE status NOT IN ('pending_payment')
+    pool.query<{ paid: string; completed: string; avg_band: string | null }>(`
+      SELECT
+        COUNT(*)::int                                                             AS paid,
+        COUNT(*) FILTER (WHERE ue.status = 'completed')::int                     AS completed,
+        ROUND(AVG(es.overall_score)::numeric, 1)::text                           AS avg_band
+      FROM user_exams ue
+      LEFT JOIN exam_scores es ON es.user_exam_id = ue.id
+      WHERE ue.status NOT IN ('pending_payment')
     `),
 
     pool.query<{ gender: string | null; cnt: string }>(`
@@ -47,7 +51,12 @@ export async function getAdminInfoStats(): Promise<string> {
   const c1Paid  = parseInt(c.c1_paid  ?? "0", 10);
   const b2Cert  = parseInt(c.b2_cert  ?? "0", 10);
   const c1Cert  = parseInt(c.c1_cert  ?? "0", 10);
-  const ieltsPaid = parseInt(ieltsRow.rows[0]?.paid ?? "0", 10);
+
+  const ir = ieltsRow.rows[0];
+  const ieltsPaid      = parseInt(ir?.paid      ?? "0", 10);
+  const ieltsCompleted = parseInt(ir?.completed ?? "0", 10);
+  const ieltsAvgBand   = ir?.avg_band ? `${ir.avg_band}` : null;
+
   const totalUsers = parseInt(totalUsersRow.rows[0]?.cnt ?? "0", 10);
 
   const genderMap: Record<string, number> = {};
@@ -75,14 +84,17 @@ export async function getAdminInfoStats(): Promise<string> {
     `👥 <b>FOYDALANUVCHILAR:</b>\n` +
     `┗ Jami ro'yxatdan o'tganlar: <b>${totalUsers}</b>\n\n` +
 
-    `🎓 <b>SERTIFIKAT IMTIHONLARI:</b>\n` +
+    `🎓 <b>RUS TILI SERTIFIKATI:</b>\n` +
     `┣ B2 — To'lov qilganlar: <b>${b2Paid}</b>\n` +
     `┣ B2 — Sertifikat olganlar: <b>${b2Cert} ✅</b>\n` +
     `┣ C1 — To'lov qilganlar: <b>${c1Paid}</b>\n` +
     `┗ C1 — Sertifikat olganlar: <b>${c1Cert} ✅</b>\n\n` +
 
     `📝 <b>IELTS MOCK EXAM:</b>\n` +
-    `┗ To'lov qilganlar: <b>${ieltsPaid}</b>\n\n` +
+    `┣ To'lov qilganlar: <b>${ieltsPaid}</b>\n` +
+    `┣ Imtihon topshirganlar: <b>${ieltsCompleted}</b>\n` +
+    `┗ O'rtacha band score: <b>${ieltsAvgBand ?? "—"}</b>\n` +
+    `<i>(IELTS da o'tdi/o'tmadi yo'q — band score beriladi)</i>\n\n` +
 
     `🗣 <b>3 TIL SUHBAT OBUNASI:</b>\n` +
     `┣ 🇷🇺 Ruscha: <b>${rusCount}</b>\n` +
@@ -92,7 +104,7 @@ export async function getAdminInfoStats(): Promise<string> {
     `👤 <b>TO'LOV QILGANLAR JINSI:</b>\n` +
     `┣ 🙍‍♀️ Qizlar: <b>${girls}</b>\n` +
     `┣ 🙍‍♂️ O'g'il bolalar: <b>${boys}</b>\n` +
-    (unknownGender > 0 ? `┗ ❓ Noma'lum: <b>${unknownGender}</b>\n` : `┗ ❓ Noma'lum: <b>0</b>\n`) +
+    `┗ ❓ Noma'lum: <b>${unknownGender}</b>\n` +
 
     `\n🕐 <i>${now}</i>`
   );
