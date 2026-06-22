@@ -66,11 +66,41 @@ app.listen(PORT, async () => {
     console.error("Cert DB init error:", err);
   }
 
-  const bot = new TelegramBot(TOKEN, { polling: true });
+  const bot = new TelegramBot(TOKEN, { polling: false });
   setBotForExam(bot);
 
-  bot.on("polling_error", (err) => console.error("Polling error:", err));
-  bot.on("error",         (err) => console.error("Bot error:", err));
+  // Clean stop on shutdown
+  const shutdown = async () => {
+    console.log("Stopping bot polling...");
+    try { await bot.stopPolling(); } catch { /* ignore */ }
+    process.exit(0);
+  };
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT",  shutdown);
+
+  bot.on("polling_error", async (err: Error & { code?: string }) => {
+    if (err.code === "ETELEGRAM" && err.message.includes("409")) {
+      console.warn("409 conflict — waiting 5s and retrying...");
+      try { await bot.stopPolling(); } catch { /* ignore */ }
+      await new Promise(r => setTimeout(r, 5000));
+      try { await bot.startPolling(); console.log("✅ Polling qayta boshlandi"); } catch { /* ignore */ }
+    } else {
+      console.error("Polling error:", err);
+    }
+  });
+  bot.on("error", (err) => console.error("Bot error:", err));
+
+  // Wait for any old process to release Telegram lock
+  await new Promise(r => setTimeout(r, 3000));
+  try {
+    await bot.deleteWebhook({ drop_pending_updates: true });
+    console.log("✅ Webhook tozalandi");
+  } catch (err) {
+    console.warn("Webhook ogohlantirish:", err);
+  }
+  await new Promise(r => setTimeout(r, 1000));
+  await bot.startPolling();
+  console.log("✅ Polling boshlandi");
 
   registerHandlers(bot);
   await registerIeltsHandlers(bot);
