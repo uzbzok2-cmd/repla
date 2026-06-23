@@ -8,6 +8,7 @@ import { MsEdgeTTS, OUTPUT_FORMAT } from "msedge-tts";
 
 const groq = new Groq({ apiKey: process.env["GROQ_API_KEY"] });
 const ELEVENLABS_API_KEY = process.env["ELEVENLABS_API_KEY"];
+const HF_TOKEN = process.env["HF_TOKEN"]; // ixtiyoriy — bepul ro'yxatdan o'tish bilan limit oshadi
 
 const ELEVENLABS_VOICES: Record<string, string> = {
   russian: "XrExE9yKIg1WjnnlVkGX",
@@ -15,11 +16,18 @@ const ELEVENLABS_VOICES: Record<string, string> = {
   turkish: "XrExE9yKIg1WjnnlVkGX",
 };
 
-// Edge TTS (Microsoft, bepul, yuqori sifat — Coqui o'rniga)
+// Edge TTS (Microsoft, bepul, yuqori sifat)
 const EDGE_VOICES: Record<string, string> = {
   russian: "ru-RU-SvetlanaNeural",
   english: "en-US-JennyNeural",
   turkish: "tr-TR-EmelNeural",
+};
+
+// Hugging Face MMS TTS (Facebook, to'liq bepul, API kalit ixtiyoriy)
+const HF_MMS_MODELS: Record<string, string> = {
+  russian: "facebook/mms-tts-rus",
+  english: "facebook/mms-tts-eng",
+  turkish: "facebook/mms-tts-tur",
 };
 
 export async function transcribeAudio(fileUrl: string): Promise<string> {
@@ -81,10 +89,17 @@ export async function textToSpeech(
   try {
     return await edgeTTS(targetText, mode);
   } catch (err) {
-    console.error("Edge TTS failed, falling back to Google Translate TTS:", err);
+    console.error("Edge TTS failed, trying HuggingFace MMS:", err);
   }
 
-  // 3-qavatli: Google Translate TTS (har doim ishlaydi)
+  // 3-qavatli: Hugging Face MMS TTS (to'liq bepul, Facebook)
+  try {
+    return await huggingFaceMmsTTS(targetText, mode);
+  } catch (err) {
+    console.error("HuggingFace MMS failed, falling back to Google Translate TTS:", err);
+  }
+
+  // 4-qavatli: Google Translate TTS (har doim ishlaydi)
   return await googleTranslateTTS(targetText, mode);
 }
 
@@ -132,6 +147,23 @@ async function edgeTTS(
       });
     }).catch(reject);
   });
+}
+
+async function huggingFaceMmsTTS(
+  text: string,
+  mode: "russian" | "english" | "turkish"
+): Promise<Buffer> {
+  const model = HF_MMS_MODELS[mode];
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (HF_TOKEN) headers["Authorization"] = `Bearer ${HF_TOKEN}`;
+  const response = await axios.post(
+    `https://api-inference.huggingface.co/models/${model}`,
+    { inputs: text.slice(0, 500) },
+    { headers, responseType: "arraybuffer", timeout: 30000 }
+  );
+  const buf = Buffer.from(response.data);
+  if (buf.length < 1000) throw new Error("HF MMS: audio too short, model may be loading");
+  return buf;
 }
 
 async function googleTranslateTTS(
