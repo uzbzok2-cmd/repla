@@ -4,10 +4,10 @@ import { unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import axios from "axios";
+import { MsEdgeTTS, OUTPUT_FORMAT } from "msedge-tts";
 
 const groq = new Groq({ apiKey: process.env["GROQ_API_KEY"] });
 const ELEVENLABS_API_KEY = process.env["ELEVENLABS_API_KEY"];
-const GOOGLE_TTS_API_KEY = process.env["GOOGLE_TTS_API_KEY"];
 
 const ELEVENLABS_VOICES: Record<string, string> = {
   russian: "XrExE9yKIg1WjnnlVkGX",
@@ -15,10 +15,11 @@ const ELEVENLABS_VOICES: Record<string, string> = {
   turkish: "XrExE9yKIg1WjnnlVkGX",
 };
 
-const GOOGLE_VOICES: Record<string, { languageCode: string; name: string }> = {
-  russian: { languageCode: "ru-RU", name: "ru-RU-Neural2-A" },
-  english: { languageCode: "en-US", name: "en-US-Neural2-F" },
-  turkish: { languageCode: "tr-TR", name: "tr-TR-Standard-B" },
+// Edge TTS (Microsoft, bepul, yuqori sifat — Coqui o'rniga)
+const EDGE_VOICES: Record<string, string> = {
+  russian: "ru-RU-SvetlanaNeural",
+  english: "en-US-JennyNeural",
+  turkish: "tr-TR-EmelNeural",
 };
 
 export async function transcribeAudio(fileUrl: string): Promise<string> {
@@ -67,22 +68,20 @@ export async function textToSpeech(
     mode === "turkish" ? extractTurkishPart(text) :
     extractRussianPart(text);
 
-  // 1-qavatli: ElevenLabs (eng tabiiy)
+  // 1-qavatli: ElevenLabs (eng tabiiy, pullik)
   if (ELEVENLABS_API_KEY) {
     try {
       return await elevenLabsTTS(targetText, mode);
     } catch (err) {
-      console.error("ElevenLabs failed, trying Google Cloud TTS:", err);
+      console.error("ElevenLabs failed, trying Edge TTS:", err);
     }
   }
 
-  // 2-qavatli: Google Cloud TTS (neural ovoz)
-  if (GOOGLE_TTS_API_KEY) {
-    try {
-      return await googleCloudTTS(targetText, mode);
-    } catch (err) {
-      console.error("Google Cloud TTS failed, falling back to Google Translate TTS:", err);
-    }
+  // 2-qavatli: Microsoft Edge TTS (bepul, yuqori sifat)
+  try {
+    return await edgeTTS(targetText, mode);
+  } catch (err) {
+    console.error("Edge TTS failed, falling back to Google Translate TTS:", err);
   }
 
   // 3-qavatli: Google Translate TTS (har doim ishlaydi)
@@ -110,21 +109,29 @@ async function elevenLabsTTS(
   return Buffer.from(response.data);
 }
 
-async function googleCloudTTS(
+async function edgeTTS(
   text: string,
   mode: "russian" | "english" | "turkish"
 ): Promise<Buffer> {
-  const voice = GOOGLE_VOICES[mode];
-  const response = await axios.post(
-    `https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_TTS_API_KEY}`,
-    {
-      input: { text: text.slice(0, 500) },
-      voice,
-      audioConfig: { audioEncoding: "MP3", speakingRate: 0.95, pitch: 0 },
-    },
-    { timeout: 15000 }
-  );
-  return Buffer.from(response.data.audioContent, "base64");
+  const tts = new MsEdgeTTS();
+  const voice = EDGE_VOICES[mode];
+  await tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
+  const cleanText = text.slice(0, 900).replace(/[<>]/g, "");
+  return new Promise<Buffer>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    tts.toStream(cleanText).then((streamObj) => {
+      streamObj.audio.on("data", (chunk: Buffer) => chunks.push(chunk));
+      streamObj.audio.on("end", () => {
+        tts.close();
+        if (chunks.length === 0) return reject(new Error("Edge TTS: empty audio"));
+        resolve(Buffer.concat(chunks));
+      });
+      streamObj.audio.on("error", (err: Error) => {
+        tts.close();
+        reject(err);
+      });
+    }).catch(reject);
+  });
 }
 
 async function googleTranslateTTS(
